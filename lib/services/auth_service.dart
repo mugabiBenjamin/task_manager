@@ -1,0 +1,152 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
+import '../core/constants/firebase_constants.dart';
+
+class AuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  User? get currentUser => _auth.currentUser;
+  
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // Sign up with email and password
+  Future<UserCredential?> signUpWithEmailPassword({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    try {
+      final UserCredential result = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Update display name
+      await result.user?.updateDisplayName(displayName);
+
+      // Create user document in Firestore
+      if (result.user != null) {
+        await _createUserDocument(result.user!, displayName);
+      }
+
+      return result;
+    } catch (e) {
+      throw Exception('Sign up failed: $e');
+    }
+  }
+
+  // Sign in with email and password
+  Future<UserCredential?> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      return await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      throw Exception('Sign in failed: $e');
+    }
+  }
+
+  // Sign in with Google
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential result = await _auth.signInWithCredential(credential);
+
+      // Create user document if new user
+      if (result.user != null) {
+        await _createUserDocument(result.user!, result.user!.displayName ?? '');
+      }
+
+      return result;
+    } catch (e) {
+      throw Exception('Google sign in failed: $e');
+    }
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+      await _auth.signOut();
+    } catch (e) {
+      throw Exception('Sign out failed: $e');
+    }
+  }
+
+  // Send email verification
+  Future<void> sendEmailVerification() async {
+    try {
+      await _auth.currentUser?.sendEmailVerification();
+    } catch (e) {
+      throw Exception('Failed to send verification email: $e');
+    }
+  }
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      throw Exception('Password reset failed: $e');
+    }
+  }
+
+  // Get current user data from Firestore
+  Future<UserModel?> getCurrentUserData() async {
+    try {
+      if (_auth.currentUser == null) return null;
+
+      final doc = await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(_auth.currentUser!.uid)
+          .get();
+
+      if (doc.exists) {
+        return UserModel.fromFirestore(doc);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get user data: $e');
+    }
+  }
+
+  // Create user document in Firestore
+  Future<void> _createUserDocument(User user, String displayName) async {
+    try {
+      final userDoc = _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(user.uid);
+
+      final docSnapshot = await userDoc.get();
+      if (!docSnapshot.exists) {
+        final userModel = UserModel(
+          id: user.uid,
+          email: user.email ?? '',
+          displayName: displayName,
+          createdAt: DateTime.now(),
+          isEmailVerified: user.emailVerified,
+        );
+
+        await userDoc.set(userModel.toMap());
+      }
+    } catch (e) {
+      throw Exception('Failed to create user document: $e');
+    }
+  }
+}
