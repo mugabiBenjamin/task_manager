@@ -35,7 +35,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person),
-            onPressed: () => _navigateToProfile(context),
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.userProfile),
           ),
         ],
       ),
@@ -100,9 +101,5 @@ class _TaskListScreenState extends State<TaskListScreen> {
         child: const Icon(Icons.add),
       ),
     );
-  }
-
-  void _navigateToProfile(BuildContext context) {
-    Navigator.pushNamed(context, AppRoutes.userProfile);
   }
 }

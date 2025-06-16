@@ -4,6 +4,7 @@ import '../../core/constants/app_constants.dart';
 import '../../models/task_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
 
@@ -13,7 +14,19 @@ class CreateTaskScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppConstants.createTaskTitle)),
+      appBar: AppBar(
+        title: const Text(AppConstants.createTaskTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list),
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.taskList,
+              (route) => false,
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppConstants.defaultPadding),
         child: Column(
@@ -73,7 +86,11 @@ class CreateTaskScreen extends StatelessWidget {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final success = await taskProvider.createTask(task);
     if (success && context.mounted) {
-      Navigator.pop(context);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.taskList,
+        (route) => false,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
       );

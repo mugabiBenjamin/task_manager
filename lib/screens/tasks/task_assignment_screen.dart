@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/loading_widget.dart';
@@ -48,7 +49,16 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Assign Task')),
+      appBar: AppBar(
+        title: const Text('Assign Task'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.userProfile),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(AppConstants.defaultPadding),
         child: Column(
