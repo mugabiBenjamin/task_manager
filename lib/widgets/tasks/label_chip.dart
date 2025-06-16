@@ -29,7 +29,7 @@ class LabelChip extends StatelessWidget {
         ),
         backgroundColor: Color(
           int.parse(label.color.replaceFirst('#', '0xFF')),
-        ).withOpacity(0.2),
+        ).withValues(alpha: 0.2),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.borderRadius),
           side: BorderSide(

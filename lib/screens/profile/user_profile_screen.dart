@@ -89,6 +89,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     prefixIcon: Icons.person,
                     validator: Validators.validateDisplayName,
                     readOnly: !_isEditing,
+                    onChanged: (value) {},
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
                   CustomTextField(
@@ -96,6 +97,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     labelText: 'Email',
                     prefixIcon: Icons.email,
                     readOnly: true,
+                    onChanged: (value) {},
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
                   ListTile(
@@ -173,13 +175,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       await _userService.updateUser(userId, {'displayName': newDisplayName});
       await authProvider.user!.updateDisplayName(newDisplayName);
       await authProvider.loadUserData(); // Refresh user data
-      setState(() {
-        _isEditing = false;
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppConstants.successMessage)),
-      );
+      if (mounted) {
+        setState(() {
+          _isEditing = false;
+          _isLoading = false;
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppConstants.successMessage)),
+        );
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to update profile: $e';
@@ -197,14 +203,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     try {
       final success = await authProvider.sendEmailVerification();
-      if (success) {
+      if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Verification email sent')),
         );
       }
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to send verification email: $e';
@@ -227,7 +235,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await Provider.of<AuthProvider>(context, listen: false).signOut();
+              if (mounted) {
+                await Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
+                ).signOut();
+              }
             },
             child: const Text('Sign Out'),
           ),

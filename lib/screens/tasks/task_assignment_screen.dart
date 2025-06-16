@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
-import '../../models/user_model.dart';
 import '../../providers/task_provider.dart';
-import '../../services/user_service.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/common/loading_widget.dart';
 
 class TaskAssignmentScreen extends StatefulWidget {
   final String taskId;
@@ -22,67 +22,27 @@ class TaskAssignmentScreen extends StatefulWidget {
 }
 
 class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
-  final _searchController = TextEditingController();
-  List<UserModel> _users = [];
+  final TextEditingController _searchController = TextEditingController();
   List<String> _selectedAssignees = [];
-  bool _isLoading = false;
-  String? _errorMessage;
-  final UserService _userService = UserService();
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     _selectedAssignees = List.from(widget.currentAssignees);
-    _searchController.addListener(() {
-      _searchUsers(_searchController.text);
+    // Load initial assignees
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (_selectedAssignees.isNotEmpty) {
+        userProvider.loadUsersByIds(_selectedAssignees);
+      }
     });
-    _loadInitialUsers();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadInitialUsers() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final users = await _userService.getUsersByIds(widget.currentAssignees);
-      setState(() {
-        _users = users;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load users: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _searchUsers(String query) async {
-    if (query.isEmpty) {
-      _loadInitialUsers();
-      return;
-    }
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final users = await _userService.searchUsers(query);
-      setState(() {
-        _users = users;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to search users: $e';
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -98,64 +58,80 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
               controller: _searchController,
               labelText: 'Search Users by Email',
               prefixIcon: Icons.search,
+              onChanged: (value) {
+                setState(() {
+                  _isSearching = value.isNotEmpty;
+                });
+                Provider.of<UserProvider>(
+                  context,
+                  listen: false,
+                ).searchUsers(value.trim());
+              },
             ),
             const SizedBox(height: AppConstants.defaultPadding),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_errorMessage != null)
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: AppConstants.errorColor),
-                textAlign: TextAlign.center,
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _users.length,
-                  itemBuilder: (context, index) {
-                    final user = _users[index];
-                    final isSelected = _selectedAssignees.contains(user.id);
-                    return ListTile(
-                      leading: CircleAvatar(
-                        child: Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
-                              : '?',
+            Text(
+              'Selected Assignees (${_selectedAssignees.length})',
+              style: AppConstants.subtitleStyle,
+            ),
+            const SizedBox(height: AppConstants.smallPadding),
+            Expanded(
+              child: Consumer<UserProvider>(
+                builder: (context, userProvider, child) {
+                  if (userProvider.isLoading) {
+                    return const Center(child: LoadingWidget());
+                  }
+                  if (userProvider.errorMessage != null) {
+                    return Center(
+                      child: Text(
+                        userProvider.errorMessage!,
+                        style: const TextStyle(color: AppConstants.errorColor),
+                      ),
+                    );
+                  }
+                  final users = userProvider.users;
+                  if (users.isEmpty && !_isSearching) {
+                    return Center(
+                      child: Text(
+                        'No assignees selected',
+                        style: AppConstants.bodyStyle.copyWith(
+                          color: AppConstants.textSecondaryColor,
                         ),
                       ),
-                      title: Text(
-                        user.displayName.isNotEmpty
-                            ? user.displayName
-                            : 'Unknown',
-                      ),
-                      subtitle: Text(user.email),
-                      trailing: Icon(
-                        isSelected ? Icons.check_circle : Icons.circle_outlined,
-                        color: isSelected
-                            ? AppConstants.primaryColor
-                            : AppConstants.textSecondaryColor,
-                      ),
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedAssignees.remove(user.id);
-                          } else {
-                            _selectedAssignees.add(user.id);
-                          }
-                        });
-                      },
                     );
-                  },
-                ),
+                  }
+                  return ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+                      final isSelected = _selectedAssignees.contains(user.id);
+                      return CheckboxListTile(
+                        title: Text(
+                          user.displayName.isNotEmpty
+                              ? user.displayName
+                              : user.email,
+                        ),
+                        subtitle: Text(
+                          user.email,
+                          style: AppConstants.bodyStyle.copyWith(
+                            color: AppConstants.textSecondaryColor,
+                          ),
+                        ),
+                        value: isSelected,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedAssignees.add(user.id);
+                            } else {
+                              _selectedAssignees.remove(user.id);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  );
+                },
               ),
-            const SizedBox(height: AppConstants.defaultPadding),
-            if (_selectedAssignees.isNotEmpty)
-              Text(
-                '${_selectedAssignees.length} assignee${_selectedAssignees.length > 1 ? 's' : ''} selected',
-                style: AppConstants.bodyStyle.copyWith(
-                  color: AppConstants.textSecondaryColor,
-                ),
-              ),
+            ),
             const SizedBox(height: AppConstants.defaultPadding),
             Consumer<TaskProvider>(
               builder: (context, taskProvider, child) {
@@ -189,7 +165,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
       _selectedAssignees,
     );
     if (success && mounted) {
-      Navigator.pop(context);
+      Navigator.pop(context, _selectedAssignees);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
       );

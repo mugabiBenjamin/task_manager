@@ -258,9 +258,4 @@ class TaskProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

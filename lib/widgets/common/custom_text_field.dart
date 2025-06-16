@@ -28,7 +28,7 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     this.maxLines = 1,
     this.readOnly = false,
-    this.onTap,
+    this.onTap, required Null Function(dynamic value) onChanged,
   });
 
   @override

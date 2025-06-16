@@ -137,10 +137,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     };
 
     final success = await taskProvider.updateTask(widget.taskId, updates);
-    if (success) {
-      if (!mounted) {
-        return; // Guard against using context if widget is unmounted
-      }
+    if (success && mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
