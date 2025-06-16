@@ -31,6 +31,7 @@ class App extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         title: 'Task Manager',
         theme: AppTheme.lightTheme,
         navigatorKey: navigatorKey,
