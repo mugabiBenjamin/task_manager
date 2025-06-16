@@ -3,10 +3,9 @@ import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 import '../screens/tasks/task_list_screen.dart';
 import '../screens/tasks/create_task_screen.dart';
-// Placeholder imports for screens to be implemented
-// import '../screens/tasks/task_details_screen.dart';
-// import '../screens/tasks/task_assignment_screen.dart';
-// import '../screens/profile/user_profile_screen.dart';
+import '../screens/tasks/task_details_screen.dart';
+import '../screens/tasks/task_assignment_screen.dart';
+import '../screens/profile/user_profile_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -23,15 +22,19 @@ class AppRoutes {
       signup: (context) => const SignupScreen(),
       taskList: (context) => const TaskListScreen(),
       createTask: (context) => const CreateTaskScreen(),
-      taskDetails: (context) => const Scaffold(
-        body: Center(child: Text('Task Details Screen - Coming Soon')),
-      ),
-      taskAssignment: (context) => const Scaffold(
-        body: Center(child: Text('Task Assignment Screen - Coming Soon')),
-      ),
-      userProfile: (context) => const Scaffold(
-        body: Center(child: Text('User Profile Screen - Coming Soon')),
-      ),
+      taskDetails: (context) {
+        final args = ModalRoute.of(context)!.settings.arguments as String;
+        return TaskDetailsScreen(taskId: args);
+      },
+      taskAssignment: (context) {
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        return TaskAssignmentScreen(
+          taskId: args['taskId'] as String,
+          currentAssignees: args['currentAssignees'] as List<String>,
+        );
+      },
+      userProfile: (context) => const UserProfileScreen(),
     };
   }
 }
