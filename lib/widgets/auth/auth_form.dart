@@ -72,7 +72,8 @@ class _AuthFormState extends State<AuthForm> {
               controller: _displayNameController,
               labelText: 'Display Name',
               prefixIcon: Icons.person,
-              validator: Validators.validateDisplayName, onChanged: (value) {  },
+              validator: Validators.validateDisplayName,
+              onChanged: (value) {},
             ),
           if (!widget.isLogin)
             const SizedBox(height: AppConstants.defaultPadding),
@@ -81,7 +82,8 @@ class _AuthFormState extends State<AuthForm> {
             labelText: 'Email',
             prefixIcon: Icons.email,
             keyboardType: TextInputType.emailAddress,
-            validator: Validators.validateEmail, onChanged: (value) {  },
+            validator: Validators.validateEmail,
+            onChanged: (value) {},
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           CustomTextField(
@@ -97,7 +99,8 @@ class _AuthFormState extends State<AuthForm> {
               });
             },
             obscureText: _obscurePassword,
-            validator: Validators.validatePassword, onChanged: (value) {  },
+            validator: Validators.validatePassword,
+            onChanged: (value) {},
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           if (!widget.isLogin)
@@ -117,7 +120,8 @@ class _AuthFormState extends State<AuthForm> {
               validator: (value) => Validators.validateConfirmPassword(
                 _passwordController.text,
                 value,
-              ), onChanged: (value) {  },
+              ),
+              onChanged: (value) {},
             ),
           if (!widget.isLogin)
             const SizedBox(height: AppConstants.defaultPadding),
