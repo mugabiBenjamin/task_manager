@@ -9,7 +9,7 @@ class AppTheme {
         seedColor: AppConstants.primaryColor,
         primary: AppConstants.primaryColor,
         secondary: AppConstants.secondaryColor,
-        background: AppConstants.backgroundColor,
+        surface: AppConstants.backgroundColor,
         error: AppConstants.errorColor,
       ),
       scaffoldBackgroundColor: AppConstants.backgroundColor,
@@ -104,7 +104,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppConstants.backgroundColor,
-        selectedColor: AppConstants.primaryColor.withOpacity(0.2),
+        selectedColor: AppConstants.primaryColor.withValues(alpha: 0.2),
         secondarySelectedColor: AppConstants.secondaryColor,
         labelStyle: AppConstants.bodyStyle,
         padding: const EdgeInsets.all(AppConstants.smallPadding),
