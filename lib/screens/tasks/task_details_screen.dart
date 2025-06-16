@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
@@ -118,8 +117,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   void _updateTask(BuildContext context, TaskModel task) async {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.user!.uid;
 
     final updates = {
       'title': task.title,
@@ -140,7 +137,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     };
 
     final success = await taskProvider.updateTask(widget.taskId, updates);
-    if (success && mounted) {
+    if (success) {
+      if (!mounted)
+        return; // Guard against using context if widget is unmounted
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
