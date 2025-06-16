@@ -53,7 +53,9 @@ class TaskCard extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(task.status).withOpacity(0.2),
+                      color: _getStatusColor(
+                        task.status,
+                      ).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius / 2,
                       ),
@@ -136,7 +138,7 @@ class TaskCard extends StatelessWidget {
                           style: AppConstants.bodyStyle.copyWith(fontSize: 12),
                         ),
                         backgroundColor: AppConstants.textSecondaryColor
-                            .withOpacity(0.2),
+                            .withValues(alpha: 0.2),
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppConstants.smallPadding,
                         ),
