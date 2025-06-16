@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/task_priority.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/utils/date_helper.dart';
 import '../../core/utils/validators.dart';
 import '../../models/task_model.dart';
+import '../../providers/label_provider.dart';
+import '../../routes/app_routes.dart';
 import '../common/custom_text_field.dart';
 import 'status_dropdown.dart';
 import 'priority_dropdown.dart';
@@ -40,7 +43,6 @@ class _TaskFormState extends State<TaskForm> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers and state based on provided task or defaults
     _titleController = TextEditingController(text: widget.task?.title ?? '');
     _descriptionController = TextEditingController(
       text: widget.task?.description ?? '',
@@ -132,14 +134,7 @@ class _TaskFormState extends State<TaskForm> {
           ListTile(
             title: const Text('Assignees'),
             trailing: const Icon(Icons.person_add),
-            onTap: () {
-              // TODO: Navigate to TaskAssignmentScreen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Assignee selection coming soon!'),
-                ),
-              );
-            },
+            onTap: () => _navigateToAssignmentScreen(context),
           ),
           if (_selectedAssignees.isNotEmpty)
             Padding(
@@ -157,12 +152,7 @@ class _TaskFormState extends State<TaskForm> {
           ListTile(
             title: const Text('Labels'),
             trailing: const Icon(Icons.label),
-            onTap: () {
-              // TODO: Integrate with LabelProvider when implemented
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Label selection coming soon!')),
-              );
-            },
+            onTap: () => _showLabelSelectionDialog(context),
           ),
           if (_selectedLabels.isNotEmpty)
             Padding(
@@ -204,6 +194,103 @@ class _TaskFormState extends State<TaskForm> {
         }
       });
     }
+  }
+
+  void _navigateToAssignmentScreen(BuildContext context) {
+    if (widget.task?.id.isEmpty ?? true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please save the task before assigning users'),
+        ),
+      );
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      AppRoutes.taskAssignment,
+      arguments: {
+        'taskId': widget.task!.id,
+        'currentAssignees': _selectedAssignees,
+      },
+    ).then((result) {
+      if (result != null && result is List<String>) {
+        setState(() {
+          _selectedAssignees = result;
+        });
+      }
+    });
+  }
+
+  void _showLabelSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Consumer<LabelProvider>(
+          builder: (context, labelProvider, child) {
+            if (labelProvider.isLoading) {
+              return const AlertDialog(
+                content: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (labelProvider.errorMessage != null) {
+              return AlertDialog(
+                title: const Text('Error'),
+                content: Text(labelProvider.errorMessage!),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              );
+            }
+            final List<String> tempSelectedLabels = List.from(_selectedLabels);
+            return AlertDialog(
+              title: const Text('Select Labels'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: labelProvider.labels.length,
+                  itemBuilder: (context, index) {
+                    final label = labelProvider.labels[index];
+                    final isSelected = tempSelectedLabels.contains(label.id);
+                    return CheckboxListTile(
+                      title: Text(label.name),
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            tempSelectedLabels.add(label.id);
+                          } else {
+                            tempSelectedLabels.remove(label.id);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedLabels = tempSelectedLabels;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void submitForm(String userId) {
