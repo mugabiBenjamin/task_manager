@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
 import '../../providers/task_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
 
@@ -61,6 +62,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () => _showDeleteDialog(context),
+            ),
+          if (_task != null)
+            IconButton(
+              icon: const Icon(Icons.assignment),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                AppRoutes.taskAssignment,
+                arguments: {
+                  'taskId': widget.taskId,
+                  'currentAssignees': _task!.assignedTo,
+                },
+              ),
             ),
         ],
       ),
