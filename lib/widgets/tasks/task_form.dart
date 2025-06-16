@@ -82,14 +82,14 @@ class _TaskFormState extends State<TaskForm> {
           CustomTextField(
             controller: _titleController,
             labelText: 'Task Title',
-            validator: Validators.validateTaskTitle,
+            validator: Validators.validateTaskTitle, onChanged: (value) {  },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           CustomTextField(
             controller: _descriptionController,
             labelText: 'Description',
             maxLines: 4,
-            validator: Validators.validateTaskDescription,
+            validator: Validators.validateTaskDescription, onChanged: (value) {  },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           StatusDropdown(
@@ -120,7 +120,7 @@ class _TaskFormState extends State<TaskForm> {
             readOnly: true,
             onTap: () => _selectDate(context, isStartDate: true),
             validator: (value) =>
-                Validators.validateDate(value, allowPast: true),
+                Validators.validateDate(value, allowPast: true), onChanged: (value) {  },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           CustomTextField(
@@ -128,7 +128,7 @@ class _TaskFormState extends State<TaskForm> {
             labelText: 'Due Date',
             readOnly: true,
             onTap: () => _selectDate(context, isStartDate: false),
-            validator: Validators.validateDate,
+            validator: Validators.validateDate, onChanged: (value) {  },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           ListTile(
