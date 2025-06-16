@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../routes/app_routes.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -190,7 +191,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: OutlinedButton.icon(
                         onPressed: authProvider.isLoading
                             ? null
-                            : _signInWithGoogle,
+                            : _signUpWithGoogle,
                         icon: const Icon(Icons.g_mobiledata),
                         label: const Text('Sign up with Google'),
                         style: OutlinedButton.styleFrom(
@@ -207,7 +208,10 @@ class _SignupScreenState extends State<SignupScreen> {
                     const Text('Already have an account? '),
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pushReplacementNamed(
+                          context,
+                          AppRoutes.login,
+                        );
                       },
                       child: const Text('Login'),
                     ),
@@ -224,24 +228,16 @@ class _SignupScreenState extends State<SignupScreen> {
   void _signUp() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.signUp(
+      await authProvider.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         displayName: _displayNameController.text.trim(),
       );
-
-      if (success && mounted) {
-        Navigator.pop(context);
-      }
     }
   }
 
-  void _signInWithGoogle() async {
+  void _signUpWithGoogle() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.signInWithGoogle();
-
-    if (success && mounted) {
-      Navigator.pop(context);
-    }
+    await authProvider.signInWithGoogle();
   }
 }
