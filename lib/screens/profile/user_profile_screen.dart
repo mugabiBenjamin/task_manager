@@ -88,14 +88,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     labelText: 'Display Name',
                     prefixIcon: Icons.person,
                     validator: Validators.validateDisplayName,
-                    readOnly: !_isEditing,
+                    readOnly: !_isEditing, onChanged: (value) {  },
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
                   CustomTextField(
                     controller: _emailController,
                     labelText: 'Email',
                     prefixIcon: Icons.email,
-                    readOnly: true,
+                    readOnly: true, onChanged: (value) {  },
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
                   ListTile(
