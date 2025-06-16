@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/task_priority.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
+import '../../providers/label_provider.dart';
+import '../common/loading_widget.dart';
+import 'label_chip.dart';
 
 class TaskCard extends StatelessWidget {
   final TaskModel task;
@@ -125,23 +129,34 @@ class TaskCard extends StatelessWidget {
                   padding: const EdgeInsets.only(
                     top: AppConstants.smallPadding,
                   ),
-                  child: Wrap(
-                    spacing: AppConstants.smallPadding,
-                    runSpacing: AppConstants.smallPadding,
-                    children: task.labels.map((labelId) {
-                      // Placeholder for label display; integrate with LabelProvider when available
-                      return Chip(
-                        label: Text(
-                          'Label #$labelId',
-                          style: AppConstants.bodyStyle.copyWith(fontSize: 12),
-                        ),
-                        backgroundColor: AppConstants.textSecondaryColor
-                            .withOpacity(0.2),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.smallPadding,
-                        ),
+                  child: Consumer<LabelProvider>(
+                    builder: (context, labelProvider, child) {
+                      if (labelProvider.isLoading) {
+                        return const LoadingWidget(size: AppConstants.iconSize);
+                      }
+                      if (labelProvider.errorMessage != null) {
+                        return Text(
+                          'Failed to load labels',
+                          style: AppConstants.bodyStyle.copyWith(
+                            color: AppConstants.errorColor,
+                            fontSize: 12,
+                          ),
+                        );
+                      }
+                      final labels = labelProvider.labels
+                          .where((label) => task.labels.contains(label.id))
+                          .toList();
+                      if (labels.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Wrap(
+                        spacing: AppConstants.smallPadding,
+                        runSpacing: AppConstants.smallPadding,
+                        children: labels.map((label) {
+                          return LabelChip(label: label);
+                        }).toList(),
                       );
-                    }).toList(),
+                    },
                   ),
                 ),
             ],
