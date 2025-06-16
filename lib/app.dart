@@ -22,6 +22,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AuthProvider.setNavigatorKey(navigatorKey);
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
