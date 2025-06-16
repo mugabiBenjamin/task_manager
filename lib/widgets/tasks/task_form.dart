@@ -80,12 +80,14 @@ class _TaskFormState extends State<TaskForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CustomTextField(
+            key: const Key('titleField'),
             controller: _titleController,
             labelText: 'Task Title',
             validator: Validators.validateTaskTitle,
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           CustomTextField(
+            key: const Key('descriptionField'),
             controller: _descriptionController,
             labelText: 'Description',
             maxLines: 4,
