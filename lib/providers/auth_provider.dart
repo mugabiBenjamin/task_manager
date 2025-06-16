@@ -1,7 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../routes/app_routes.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -26,11 +27,43 @@ class AuthProvider extends ChangeNotifier {
       _user = user;
       if (user != null) {
         loadUserData();
+        _navigateToTaskList();
       } else {
         _userModel = null;
+        _navigateToLogin();
       }
       notifyListeners();
     });
+  }
+
+  // Add navigation methods
+  void _navigateToTaskList() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = navigatorKey?.currentContext;
+      if (context != null) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AppRoutes.taskList, (route) => false);
+      }
+    });
+  }
+
+  void _navigateToLogin() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = navigatorKey?.currentContext;
+      if (context != null) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+      }
+    });
+  }
+
+  // Add method to set navigator key reference
+  static GlobalKey<NavigatorState>? navigatorKey;
+
+  static void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    navigatorKey = key;
   }
 
   Future<void> loadUserData() async {
