@@ -5,7 +5,7 @@ import '../../models/user_model.dart';
 import '../../providers/task_provider.dart';
 import '../../services/user_service.dart';
 import '../../widgets/common/custom_button.dart';
-import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/common/loading_widget.dart';
 
 class TaskAssignmentScreen extends StatefulWidget {
   final String taskId;
@@ -22,37 +22,34 @@ class TaskAssignmentScreen extends StatefulWidget {
 }
 
 class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
-  final _searchController = TextEditingController();
-  List<UserModel> _users = [];
   List<String> _selectedAssignees = [];
-  bool _isLoading = false;
+  List<UserModel> _availableUsers = [];
+  bool _isLoading = true;
   String? _errorMessage;
   final UserService _userService = UserService();
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selectedAssignees = List.from(widget.currentAssignees);
-    _searchController.addListener(() {
-      _searchUsers(_searchController.text);
-    });
-    _loadInitialUsers();
+    _loadUsers();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadInitialUsers() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadUsers() async {
     try {
-      final users = await _userService.getUsersByIds(widget.currentAssignees);
+      // Initially load all users; adjust to fetch specific users if needed
+      final users = await _userService.searchUsers('');
       setState(() {
-        _users = users;
+        _availableUsers = users;
         _isLoading = false;
       });
     } catch (e) {
@@ -63,18 +60,24 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
     }
   }
 
-  Future<void> _searchUsers(String query) async {
-    if (query.isEmpty) {
-      _loadInitialUsers();
-      return;
+  void _onSearchChanged() {
+    final query = _searchController.text.trim();
+    if (query.isNotEmpty) {
+      _searchUsers(query);
+    } else {
+      _loadUsers();
     }
+  }
+
+  Future<void> _searchUsers(String query) async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
     try {
       final users = await _userService.searchUsers(query);
       setState(() {
-        _users = users;
+        _availableUsers = users;
         _isLoading = false;
       });
     } catch (e) {
@@ -89,95 +92,108 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Assign Task')),
-      body: Padding(
-        padding: const EdgeInsets.all(AppConstants.defaultPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CustomTextField(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(AppConstants.defaultPadding),
+            child: TextField(
               controller: _searchController,
-              labelText: 'Search Users by Email',
-              prefixIcon: Icons.search,
+              decoration: InputDecoration(
+                labelText: 'Search Users',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppConstants.borderRadius,
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: AppConstants.defaultPadding),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_errorMessage != null)
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: AppConstants.errorColor),
-                textAlign: TextAlign.center,
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _users.length,
-                  itemBuilder: (context, index) {
-                    final user = _users[index];
-                    final isSelected = _selectedAssignees.contains(user.id);
-                    return ListTile(
-                      leading: CircleAvatar(
-                        child: Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
-                              : '?',
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: LoadingWidget())
+                : _errorMessage != null
+                ? Center(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: AppConstants.errorColor),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : _availableUsers.isEmpty
+                ? Center(
+                    child: Text(
+                      'No users found',
+                      style: AppConstants.bodyStyle.copyWith(
+                        color: AppConstants.textSecondaryColor,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                    itemCount: _availableUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = _availableUsers[index];
+                      final isSelected = _selectedAssignees.contains(user.id);
+                      return CheckboxListTile(
+                        title: Text(user.displayName),
+                        subtitle: Text(
+                          user.email,
+                          style: AppConstants.bodyStyle.copyWith(
+                            color: AppConstants.textSecondaryColor,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                      title: Text(
-                        user.displayName.isNotEmpty
-                            ? user.displayName
-                            : 'Unknown',
-                      ),
-                      subtitle: Text(user.email),
-                      trailing: Icon(
-                        isSelected ? Icons.check_circle : Icons.circle_outlined,
-                        color: isSelected
-                            ? AppConstants.primaryColor
-                            : AppConstants.textSecondaryColor,
-                      ),
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedAssignees.remove(user.id);
-                          } else {
-                            _selectedAssignees.add(user.id);
-                          }
-                        });
-                      },
+                        value: isSelected,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedAssignees.add(user.id);
+                            } else {
+                              _selectedAssignees.remove(user.id);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppConstants.defaultPadding),
+            child: Column(
+              children: [
+                Text(
+                  '${_selectedAssignees.length} assignee${_selectedAssignees.length != 1 ? 's' : ''} selected',
+                  style: AppConstants.bodyStyle.copyWith(
+                    color: AppConstants.textSecondaryColor,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.defaultPadding),
+                Consumer<TaskProvider>(
+                  builder: (context, taskProvider, child) {
+                    return CustomButton(
+                      text: taskProvider.isLoading
+                          ? 'Saving...'
+                          : 'Save Assignees',
+                      onPressed: taskProvider.isLoading ? null : _saveAssignees,
                     );
                   },
                 ),
-              ),
-            const SizedBox(height: AppConstants.defaultPadding),
-            if (_selectedAssignees.isNotEmpty)
-              Text(
-                '${_selectedAssignees.length} assignee${_selectedAssignees.length > 1 ? 's' : ''} selected',
-                style: AppConstants.bodyStyle.copyWith(
-                  color: AppConstants.textSecondaryColor,
-                ),
-              ),
-            const SizedBox(height: AppConstants.defaultPadding),
-            Consumer<TaskProvider>(
-              builder: (context, taskProvider, child) {
-                return CustomButton(
-                  text: taskProvider.isLoading ? 'Saving...' : 'Save Assignees',
-                  onPressed: taskProvider.isLoading ? null : _saveAssignees,
-                );
-              },
+                if (Provider.of<TaskProvider>(context).errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: AppConstants.defaultPadding,
+                    ),
+                    child: Text(
+                      Provider.of<TaskProvider>(context).errorMessage!,
+                      style: const TextStyle(color: AppConstants.errorColor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
             ),
-            if (Provider.of<TaskProvider>(context).errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: AppConstants.defaultPadding,
-                ),
-                child: Text(
-                  Provider.of<TaskProvider>(context).errorMessage!,
-                  style: const TextStyle(color: AppConstants.errorColor),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -189,7 +205,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
       _selectedAssignees,
     );
     if (success && mounted) {
-      Navigator.pop(context);
+      Navigator.pop(context, _selectedAssignees);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
       );
