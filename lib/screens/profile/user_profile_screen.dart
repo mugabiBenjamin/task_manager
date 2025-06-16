@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/user_service.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/common/loading_widget.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -16,19 +16,16 @@ class UserProfileScreen extends StatefulWidget {
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _displayNameController = TextEditingController();
-  final _emailController = TextEditingController();
+  late TextEditingController _displayNameController;
+  late TextEditingController _emailController;
   bool _isEditing = false;
-  bool _isLoading = false;
-  String? _errorMessage;
-  final UserService _userService = UserService();
 
   @override
   void initState() {
     super.initState();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    _displayNameController.text = authProvider.userModel?.displayName ?? '';
-    _emailController.text = authProvider.userModel?.email ?? '';
+    _displayNameController = TextEditingController();
+    _emailController = TextEditingController();
+    _loadUserData();
   }
 
   @override
@@ -38,32 +35,92 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     super.dispose();
   }
 
+  void _loadUserData() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null) {
+      userProvider.fetchCurrentUser(authProvider.user!.uid).then((_) {
+        if (userProvider.currentUser != null) {
+          _displayNameController.text = userProvider.currentUser!.displayName;
+          _emailController.text = userProvider.currentUser!.email;
+        }
+      });
+    }
+  }
+
+  void _toggleEdit() {
+    setState(() {
+      _isEditing = !_isEditing;
+    });
+  }
+
+  void _saveProfile() async {
+    if (_formKey.currentState!.validate()) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.user != null) {
+        await userProvider.updateUserProfile(
+          authProvider.user!.uid,
+          displayName: _displayNameController.text.trim(),
+          email: _emailController.text.trim(),
+        );
+        if (userProvider.errorMessage == null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text(AppConstants.successMessage)),
+          );
+          _toggleEdit();
+        }
+      }
+    }
+  }
+
+  void _sendVerificationEmail() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null && !authProvider.user!.emailVerified) {
+      try {
+        await authProvider.sendEmailVerification();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Verification email sent!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send verification email: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppConstants.profileTitle),
+        title: const Text('Profile'),
         actions: [
-          IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit),
-            onPressed: () {
-              if (_isEditing) {
-                _saveProfile();
-              } else {
-                setState(() {
-                  _isEditing = true;
-                });
-              }
-            },
-          ),
+          if (!_isEditing)
+            IconButton(icon: const Icon(Icons.edit), onPressed: _toggleEdit),
         ],
       ),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          final userModel = authProvider.userModel;
-          if (userModel == null) {
-            return const Center(child: CircularProgressIndicator());
+      body: Consumer2<UserProvider, AuthProvider>(
+        builder: (context, userProvider, authProvider, child) {
+          if (userProvider.isLoading || authProvider.isLoading) {
+            return const Center(child: LoadingWidget());
           }
+          if (userProvider.errorMessage != null) {
+            return Center(
+              child: Text(
+                userProvider.errorMessage!,
+                style: const TextStyle(color: AppConstants.errorColor),
+              ),
+            );
+          }
+          if (userProvider.currentUser == null || authProvider.user == null) {
+            return const Center(child: Text('No user data available'));
+          }
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppConstants.defaultPadding),
             child: Form(
@@ -71,79 +128,82 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      child: Text(
-                        userModel.displayName.isNotEmpty
-                            ? userModel.displayName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(fontSize: 40),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppConstants.largePadding),
                   CustomTextField(
                     controller: _displayNameController,
                     labelText: 'Display Name',
-                    prefixIcon: Icons.person,
-                    validator: Validators.validateDisplayName,
                     readOnly: !_isEditing,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Display name is required';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
                   CustomTextField(
                     controller: _emailController,
                     labelText: 'Email',
-                    prefixIcon: Icons.email,
-                    readOnly: true,
+                    readOnly: !_isEditing,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Email is required';
+                      }
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(value)) {
+                        return 'Enter a valid email';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
-                  ListTile(
-                    leading: const Icon(Icons.verified),
-                    title: Text(
-                      userModel.isEmailVerified
-                          ? 'Email Verified'
-                          : 'Email Not Verified',
-                      style: TextStyle(
-                        color: userModel.isEmailVerified
-                            ? AppConstants.successColor
-                            : AppConstants.errorColor,
+                  if (!authProvider.user!.emailVerified)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Email not verified',
+                          style: AppConstants.bodyStyle.copyWith(
+                            color: AppConstants.errorColor,
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.smallPadding),
+                        CustomButton(
+                          text: 'Send Verification Email',
+                          onPressed: _sendVerificationEmail,
+                          backgroundColor: AppConstants.primaryColor,
+                        ),
+                      ],
+                    ),
+                  if (_isEditing)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: AppConstants.largePadding,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          CustomButton(
+                            text: 'Cancel',
+                            onPressed: _toggleEdit,
+                            backgroundColor: AppConstants.textSecondaryColor,
+                          ),
+                          CustomButton(
+                            text: 'Save',
+                            onPressed: _saveProfile,
+                            backgroundColor: AppConstants.primaryColor,
+                          ),
+                        ],
                       ),
                     ),
-                    trailing: userModel.isEmailVerified
-                        ? null
-                        : TextButton(
-                            onPressed: _sendVerificationEmail,
-                            child: const Text('Verify Now'),
-                          ),
-                  ),
-                  const SizedBox(height: AppConstants.defaultPadding),
-                  ListTile(
-                    leading: const Icon(Icons.calendar_today),
-                    title: Text(
-                      'Account Created: ${DateTime.now().difference(userModel.createdAt).inDays} days ago',
-                      style: AppConstants.bodyStyle,
-                    ),
-                  ),
-                  const SizedBox(height: AppConstants.largePadding),
-                  if (_isEditing)
-                    CustomButton(
-                      text: _isLoading ? 'Saving...' : 'Save Changes',
-                      onPressed: _isLoading ? null : _saveProfile,
-                    ),
-                  const SizedBox(height: AppConstants.defaultPadding),
-                  CustomButton(
-                    text: 'Sign Out',
-                    backgroundColor: AppConstants.errorColor,
-                    onPressed: () => _showSignOutDialog(context),
-                  ),
-                  if (_errorMessage != null)
+                  if (userProvider.errorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(
                         top: AppConstants.defaultPadding,
                       ),
                       child: Text(
-                        _errorMessage!,
+                        userProvider.errorMessage!,
                         style: const TextStyle(color: AppConstants.errorColor),
                         textAlign: TextAlign.center,
                       ),
@@ -153,85 +213,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  void _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.user!.uid;
-    final newDisplayName = _displayNameController.text.trim();
-
-    try {
-      await _userService.updateUser(userId, {'displayName': newDisplayName});
-      await authProvider.user!.updateDisplayName(newDisplayName);
-      await authProvider.loadUserData(); // Refresh user data
-      setState(() {
-        _isEditing = false;
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppConstants.successMessage)),
-      );
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to update profile: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _sendVerificationEmail() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final success = await authProvider.sendEmailVerification();
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Verification email sent')),
-        );
-      }
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to send verification email: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _showSignOutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await Provider.of<AuthProvider>(context, listen: false).signOut();
-            },
-            child: const Text('Sign Out'),
-          ),
-        ],
       ),
     );
   }
