@@ -25,7 +25,7 @@ class AuthProvider extends ChangeNotifier {
     _authService.authStateChanges.listen((User? user) {
       _user = user;
       if (user != null) {
-        _loadUserData();
+        loadUserData();
       } else {
         _userModel = null;
       }
@@ -33,7 +33,7 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> loadUserData() async {
     try {
       _userModel = await _authService.getCurrentUserData();
       notifyListeners();
