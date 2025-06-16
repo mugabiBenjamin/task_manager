@@ -117,7 +117,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   void _updateTask(BuildContext context, TaskModel task) async {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final BuildContext localContext = context;
 
     final updates = {
       'title': task.title,
@@ -139,9 +138,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
     final success = await taskProvider.updateTask(widget.taskId, updates);
     if (success && mounted) {
-      // Check mounted on State
-      Navigator.pop(localContext);
-      ScaffoldMessenger.of(localContext).showSnackBar(
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
       );
     }
@@ -164,12 +162,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 context,
                 listen: false,
               );
-              final BuildContext localContext = context; // Store context
               final success = await taskProvider.deleteTask(widget.taskId);
               if (success && mounted) {
-                Navigator.pop(localContext); // Close dialog
-                Navigator.pop(localContext); // Close details screen
-                ScaffoldMessenger.of(localContext).showSnackBar(
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context); // Close details screen
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Task deleted successfully')),
                 );
               }
