@@ -74,6 +74,52 @@ class Validators {
     return null;
   }
 
+  // Validate start date (must be today or future)
+  static String? validateStartDate(String? value) {
+    if (value == null || value.isEmpty) {
+      return AppConstants.requiredField;
+    }
+    try {
+      final date = DateFormat('yyyy-MM-dd').parse(value);
+      final today = DateTime.now();
+      final todayStart = DateTime(today.year, today.month, today.day);
+
+      if (date.isBefore(todayStart)) {
+        return 'Start date cannot be in the past';
+      }
+      return null;
+    } catch (e) {
+      return 'Invalid date format';
+    }
+  }
+
+  // Validate due date (must be today or future, and after start date)
+  static String? validateDueDate(String? value, String? startDateValue) {
+    if (value == null || value.isEmpty) {
+      return AppConstants.requiredField;
+    }
+    try {
+      final dueDate = DateFormat('yyyy-MM-dd').parse(value);
+      final today = DateTime.now();
+      final todayStart = DateTime(today.year, today.month, today.day);
+
+      if (dueDate.isBefore(todayStart)) {
+        return 'Due date cannot be in the past';
+      }
+
+      if (startDateValue != null && startDateValue.isNotEmpty) {
+        final startDate = DateFormat('yyyy-MM-dd').parse(startDateValue);
+        if (dueDate.isBefore(startDate)) {
+          return 'Due date must be same or after start date';
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return 'Invalid date format';
+    }
+  }
+
   // Validate date (ensure it's not in the past)
   static String? validateDate(String? value, {bool allowPast = false}) {
     if (value == null || value.isEmpty) {

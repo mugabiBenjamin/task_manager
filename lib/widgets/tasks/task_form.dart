@@ -121,9 +121,11 @@ class TaskFormState extends State<TaskForm> {
             labelText: 'Start Date',
             readOnly: true,
             onTap: () => _selectDate(context, isStartDate: true),
-            validator: (value) =>
-                Validators.validateDate(value, allowPast: true),
-            onChanged: (value) {},
+            validator: Validators.validateStartDate,
+            onChanged: (value) {
+              // Revalidate due date when start date changes
+              _formKey.currentState?.validate();
+            },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
           CustomTextField(
@@ -131,7 +133,8 @@ class TaskFormState extends State<TaskForm> {
             labelText: 'Due Date',
             readOnly: true,
             onTap: () => _selectDate(context, isStartDate: false),
-            validator: Validators.validateDate,
+            validator: (value) =>
+                Validators.validateDueDate(value, _startDateController.text),
             onChanged: (value) {},
           ),
           const SizedBox(height: AppConstants.defaultPadding),
@@ -179,24 +182,36 @@ class TaskFormState extends State<TaskForm> {
     BuildContext context, {
     required bool isStartDate,
   }) async {
+    final today = DateTime.now();
     final initialDate = isStartDate
-        ? DateHelper.getDefaultStartDate()
-        : DateHelper.getDefaultDueDate();
+        ? today
+        : (DateHelper.parseDate(_startDateController.text) ?? today);
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      initialDate: initialDate.isBefore(today) ? today : initialDate,
+      firstDate: today,
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
+
     if (picked != null) {
       final formattedDate = DateFormat('yyyy-MM-dd').format(picked);
       setState(() {
         if (isStartDate) {
           _startDateController.text = formattedDate;
+          // Clear due date if it's before new start date
+          if (_dueDateController.text.isNotEmpty) {
+            final dueDate = DateHelper.parseDate(_dueDateController.text);
+            if (dueDate != null && dueDate.isBefore(picked)) {
+              _dueDateController.text = '';
+            }
+          }
         } else {
           _dueDateController.text = formattedDate;
         }
       });
+      // Trigger validation
+      _formKey.currentState?.validate();
     }
   }
 
