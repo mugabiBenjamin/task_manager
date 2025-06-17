@@ -21,19 +21,42 @@ class TaskService {
 
   // Get tasks by user (created by or assigned to)
   Stream<List<TaskModel>> getTasksByUser(String userId) {
-    return _tasksCollection
-        .where(
-          Filter.or(
-            Filter(FirebaseConstants.createdByField, isEqualTo: userId),
-            Filter(FirebaseConstants.assignedToField, arrayContains: userId),
-          ),
-        )
+    // Query 1: Tasks created by user
+    final createdByStream = _tasksCollection
+        .where(FirebaseConstants.createdByField, isEqualTo: userId)
         .orderBy(FirebaseConstants.createdAtField, descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList(),
-        );
+        .snapshots();
+
+    // Query 2: Tasks assigned to user
+    final assignedToStream = _tasksCollection
+        .where(FirebaseConstants.assignedToField, arrayContains: userId)
+        .orderBy(FirebaseConstants.createdAtField, descending: true)
+        .snapshots();
+
+    // Combine and deduplicate results
+    return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<TaskModel>>(
+      createdByStream,
+      assignedToStream,
+      (createdBySnapshot, assignedToSnapshot) {
+        final tasks = <TaskModel>[];
+        final seenIds = <String>{};
+
+        // Add tasks from both queries, avoiding duplicates
+        for (final doc in [
+          ...createdBySnapshot.docs,
+          ...assignedToSnapshot.docs,
+        ]) {
+          if (!seenIds.contains(doc.id)) {
+            tasks.add(TaskModel.fromFirestore(doc));
+            seenIds.add(doc.id);
+          }
+        }
+
+        // Sort by creation date (descending)
+        tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return tasks;
+      },
+    );
   }
 
   // Get task by id
@@ -93,7 +116,10 @@ class TaskService {
         final seenIds = <String>{};
 
         // Add tasks from both queries, avoiding duplicates
-        for (final doc in [...createdBySnapshot.docs, ...assignedToSnapshot.docs]) {
+        for (final doc in [
+          ...createdBySnapshot.docs,
+          ...assignedToSnapshot.docs,
+        ]) {
           if (!seenIds.contains(doc.id)) {
             tasks.add(TaskModel.fromFirestore(doc));
             seenIds.add(doc.id);
@@ -132,7 +158,10 @@ class TaskService {
         final seenIds = <String>{};
 
         // Add tasks from both queries, avoiding duplicates
-        for (final doc in [...createdBySnapshot.docs, ...assignedToSnapshot.docs]) {
+        for (final doc in [
+          ...createdBySnapshot.docs,
+          ...assignedToSnapshot.docs,
+        ]) {
           if (!seenIds.contains(doc.id)) {
             tasks.add(TaskModel.fromFirestore(doc));
             seenIds.add(doc.id);
