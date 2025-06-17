@@ -83,8 +83,10 @@ class CreateTaskScreen extends StatelessWidget {
   }
 
   void _createTask(BuildContext context, TaskModel task, String userId) async {
+    debugPrint('_createTask called with task: ${task.title}');
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final success = await taskProvider.createTask(task);
+    debugPrint('Task creation success: $success');
     if (success && context.mounted) {
       Navigator.pushNamedAndRemoveUntil(
         context,

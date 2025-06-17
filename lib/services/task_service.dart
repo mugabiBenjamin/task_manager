@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/task_model.dart';
 import '../core/constants/firebase_constants.dart';
 
@@ -20,19 +21,42 @@ class TaskService {
 
   // Get tasks by user (created by or assigned to)
   Stream<List<TaskModel>> getTasksByUser(String userId) {
-    return _tasksCollection
-        .where(
-          Filter.or(
-            Filter(FirebaseConstants.createdByField, isEqualTo: userId),
-            Filter(FirebaseConstants.assignedToField, arrayContains: userId),
-          ),
-        )
+    // Query 1: Tasks created by user
+    final createdByStream = _tasksCollection
+        .where(FirebaseConstants.createdByField, isEqualTo: userId)
         .orderBy(FirebaseConstants.createdAtField, descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList(),
-        );
+        .snapshots();
+
+    // Query 2: Tasks assigned to user
+    final assignedToStream = _tasksCollection
+        .where(FirebaseConstants.assignedToField, arrayContains: userId)
+        .orderBy(FirebaseConstants.createdAtField, descending: true)
+        .snapshots();
+
+    // Combine and deduplicate results
+    return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<TaskModel>>(
+      createdByStream,
+      assignedToStream,
+      (createdBySnapshot, assignedToSnapshot) {
+        final tasks = <TaskModel>[];
+        final seenIds = <String>{};
+
+        // Add tasks from both queries, avoiding duplicates
+        for (final doc in [
+          ...createdBySnapshot.docs,
+          ...assignedToSnapshot.docs,
+        ]) {
+          if (!seenIds.contains(doc.id)) {
+            tasks.add(TaskModel.fromFirestore(doc));
+            seenIds.add(doc.id);
+          }
+        }
+
+        // Sort by creation date (descending)
+        tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return tasks;
+      },
+    );
   }
 
   // Get task by id
@@ -69,38 +93,86 @@ class TaskService {
 
   // Get tasks by status
   Stream<List<TaskModel>> getTasksByStatus(String userId, String status) {
-    return _tasksCollection
-        .where(
-          Filter.or(
-            Filter(FirebaseConstants.createdByField, isEqualTo: userId),
-            Filter(FirebaseConstants.assignedToField, arrayContains: userId),
-          ),
-        )
+    // Query 1: Tasks created by user with specific status
+    final createdByStream = _tasksCollection
+        .where(FirebaseConstants.createdByField, isEqualTo: userId)
         .where(FirebaseConstants.statusField, isEqualTo: status)
         .orderBy(FirebaseConstants.createdAtField, descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList(),
-        );
+        .snapshots();
+
+    // Query 2: Tasks assigned to user with specific status
+    final assignedToStream = _tasksCollection
+        .where(FirebaseConstants.assignedToField, arrayContains: userId)
+        .where(FirebaseConstants.statusField, isEqualTo: status)
+        .orderBy(FirebaseConstants.createdAtField, descending: true)
+        .snapshots();
+
+    // Combine and deduplicate results
+    return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<TaskModel>>(
+      createdByStream,
+      assignedToStream,
+      (createdBySnapshot, assignedToSnapshot) {
+        final tasks = <TaskModel>[];
+        final seenIds = <String>{};
+
+        // Add tasks from both queries, avoiding duplicates
+        for (final doc in [
+          ...createdBySnapshot.docs,
+          ...assignedToSnapshot.docs,
+        ]) {
+          if (!seenIds.contains(doc.id)) {
+            tasks.add(TaskModel.fromFirestore(doc));
+            seenIds.add(doc.id);
+          }
+        }
+
+        // Sort by creation date (descending)
+        tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return tasks;
+      },
+    );
   }
 
   // Get tasks by label
   Stream<List<TaskModel>> getTasksByLabel(String userId, String labelId) {
-    return _tasksCollection
-        .where(
-          Filter.or(
-            Filter(FirebaseConstants.createdByField, isEqualTo: userId),
-            Filter(FirebaseConstants.assignedToField, arrayContains: userId),
-          ),
-        )
+    // Query 1: Tasks created by user with specific label
+    final createdByStream = _tasksCollection
+        .where(FirebaseConstants.createdByField, isEqualTo: userId)
         .where(FirebaseConstants.labelsField, arrayContains: labelId)
         .orderBy(FirebaseConstants.createdAtField, descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList(),
-        );
+        .snapshots();
+
+    // Query 2: Tasks assigned to user with specific label
+    final assignedToStream = _tasksCollection
+        .where(FirebaseConstants.assignedToField, arrayContains: userId)
+        .where(FirebaseConstants.labelsField, arrayContains: labelId)
+        .orderBy(FirebaseConstants.createdAtField, descending: true)
+        .snapshots();
+
+    // Combine and deduplicate results
+    return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<TaskModel>>(
+      createdByStream,
+      assignedToStream,
+      (createdBySnapshot, assignedToSnapshot) {
+        final tasks = <TaskModel>[];
+        final seenIds = <String>{};
+
+        // Add tasks from both queries, avoiding duplicates
+        for (final doc in [
+          ...createdBySnapshot.docs,
+          ...assignedToSnapshot.docs,
+        ]) {
+          if (!seenIds.contains(doc.id)) {
+            tasks.add(TaskModel.fromFirestore(doc));
+            seenIds.add(doc.id);
+          }
+        }
+
+        // Sort by creation date (descending)
+        tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return tasks;
+      },
+    );
   }
 
   // Assign task to users
