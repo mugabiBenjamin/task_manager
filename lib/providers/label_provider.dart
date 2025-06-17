@@ -8,14 +8,44 @@ class LabelProvider extends ChangeNotifier {
   List<LabelModel> _labels = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _currentUserId;
+  bool _isInitialized = false;
 
   // Getters
   List<LabelModel> get labels => _labels;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isInitialized => _isInitialized;
+
+  // Initialize labels when user authenticates
+  Future<void> initializeForUser(String userId) async {
+    if (_currentUserId == userId && _isInitialized) {
+      return; // Already initialized for this user
+    }
+
+    _currentUserId = userId;
+    _isInitialized = false;
+    _clearLabels();
+
+    loadLabels(userId);
+    _isInitialized = true;
+  }
+
+  // Clear data when user logs out
+  void clearUserData() {
+    _currentUserId = null;
+    _isInitialized = false;
+    _clearLabels();
+    _clearError();
+    notifyListeners();
+  }
 
   // Load labels for current user
   void loadLabels(String userId) {
+    if (_currentUserId != userId) {
+      _currentUserId = userId;
+    }
+
     _labelService
         .getLabelsByUser(userId)
         .listen(
@@ -104,5 +134,9 @@ class LabelProvider extends ChangeNotifier {
   void _clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  void _clearLabels() {
+    _labels = [];
   }
 }
