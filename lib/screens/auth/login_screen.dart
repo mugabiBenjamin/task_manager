@@ -131,7 +131,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: authProvider.isLoading
                             ? null
                             : _signInWithGoogle,
-                        icon: const Icon(Icons.g_mobiledata),
+                        icon: Image.asset(
+                          'assets/image/google.png',
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.contain,
+                        ),
                         label: const Text('Sign in with Google'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.all(16),

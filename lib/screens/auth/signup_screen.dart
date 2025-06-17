@@ -193,7 +193,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           onPressed: authProvider.isLoading
                               ? null
                               : _signUpWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata),
+                          icon: Image.asset(
+                            'assets/image/google.png',
+                            width: 24,
+                            height: 24,
+                            fit: BoxFit.contain,
+                          ),
                           label: const Text('Sign up with Google'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.all(16),
