@@ -298,7 +298,9 @@ class TaskFormState extends State<TaskForm> {
   }
 
   void submitForm(String userId) {
+    debugPrint('submitForm called with userId: $userId');
     if (_formKey.currentState!.validate()) {
+      debugPrint('Form validation passed');
       final task = TaskModel(
         id: widget.task?.id ?? '',
         title: _titleController.text.trim(),
@@ -315,7 +317,11 @@ class TaskFormState extends State<TaskForm> {
         createdAt: widget.task?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
+      debugPrint('Task created: ${task.title}');
       widget.onSubmit(task);
+      debugPrint('onSubmit called');
+    } else {
+      debugPrint('Form validation failed');
     }
   }
 }
