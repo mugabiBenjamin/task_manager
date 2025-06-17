@@ -26,10 +26,10 @@ class TaskForm extends StatefulWidget {
   });
 
   @override
-  State<TaskForm> createState() => _TaskFormState();
+  State<TaskForm> createState() => TaskFormState();
 }
 
-class _TaskFormState extends State<TaskForm> {
+class TaskFormState extends State<TaskForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
