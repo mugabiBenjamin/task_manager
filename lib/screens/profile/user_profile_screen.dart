@@ -26,9 +26,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final authProvider = context.read<AuthProvider>();
-    _displayNameController.text = authProvider.userModel?.displayName ?? '';
-    _emailController.text = authProvider.userModel?.email ?? '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+
+      // Use cached data or Firebase Auth fallback immediately
+      if (authProvider.userModel != null) {
+        _displayNameController.text = authProvider.userModel!.displayName;
+        _emailController.text = authProvider.userModel!.email;
+      } else if (authProvider.user != null) {
+        // Fallback to Firebase Auth user
+        _displayNameController.text = authProvider.user!.displayName ?? '';
+        _emailController.text = authProvider.user!.email ?? '';
+      }
+
+      // Try to load fresh data in background
+      _loadUserDataInBackground();
+    });
   }
 
   @override
