@@ -20,6 +20,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get shouldShowRetryDelay => _failedAttempts >= 3;
 
+  UserModel? _cachedUserModel;
+  bool _hasLoadedUserData = false;
+
   AuthProvider() {
     _initializeAuthListener();
   }
@@ -29,10 +32,14 @@ class AuthProvider extends ChangeNotifier {
       _user = user;
       if (user != null) {
         _resetFailedAttempts();
-        loadUserData();
+        // Only load if not cached
+        if (!_hasLoadedUserData) {
+          loadUserData();
+        }
         _navigateToTaskList();
       } else {
         _userModel = null;
+        _clearUserCache(); // Clear cache on sign out
         _navigateToLogin();
       }
       notifyListeners();
@@ -66,13 +73,47 @@ class AuthProvider extends ChangeNotifier {
     navigatorKey = key;
   }
 
+  void updateUserModel(UserModel userModel) {
+    _userModel = userModel;
+    _cachedUserModel = userModel;
+    _hasLoadedUserData = true;
+    notifyListeners();
+  }
+
   Future<void> loadUserData() async {
+    if (_hasLoadedUserData && _cachedUserModel != null) {
+      // Use cached data
+      _userModel = _cachedUserModel;
+      notifyListeners();
+      return;
+    }
+
     try {
       _userModel = await _authService.getCurrentUserData();
+      if (_userModel != null) {
+        _cachedUserModel = _userModel;
+        _hasLoadedUserData = true;
+      } else if (_user != null) {
+        // Fallback to Firebase Auth user properties
+        _userModel = UserModel.fromFirebaseUser(_user!);
+        _cachedUserModel = _userModel;
+      }
       notifyListeners();
     } catch (e) {
-      _setError('Failed to load user data: $e');
+      if (_user != null) {
+        // Use Firebase Auth fallback on error
+        _userModel = UserModel.fromFirebaseUser(_user!);
+        _cachedUserModel = _userModel;
+        notifyListeners();
+      } else {
+        _setError('Failed to load user data: $e');
+      }
     }
+  }
+
+  void _clearUserCache() {
+    _cachedUserModel = null;
+    _hasLoadedUserData = false;
   }
 
   // Enhanced error parsing

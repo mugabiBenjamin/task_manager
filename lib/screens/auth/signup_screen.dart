@@ -362,7 +362,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _signUp() async {
     if (_formKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authProvider = context.read<AuthProvider>();
       final success = await authProvider.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -376,7 +376,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _signUpWithGoogle() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     await authProvider.signInWithGoogle();
   }
 

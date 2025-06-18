@@ -54,13 +54,13 @@ class CreateTaskScreen extends StatelessWidget {
                 );
               },
             ),
-            if (Provider.of<TaskProvider>(context).errorMessage != null)
+            if (context.watch<TaskProvider>().errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(
                   top: AppConstants.defaultPadding,
                 ),
                 child: Text(
-                  Provider.of<TaskProvider>(context).errorMessage!,
+                  context.watch<TaskProvider>().errorMessage!,
                   style: const TextStyle(color: AppConstants.errorColor),
                   textAlign: TextAlign.center,
                 ),
@@ -74,7 +74,7 @@ class CreateTaskScreen extends StatelessWidget {
   void _submitForm(BuildContext context) {
     final taskForm = context.findAncestorWidgetOfExactType<TaskForm>();
     if (taskForm != null) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authProvider = context.read<AuthProvider>();
       if (authProvider.user != null) {
         // Trigger form submission via TaskForm's submitForm method
         (taskForm as dynamic).submitForm(authProvider.user!.uid);
@@ -84,7 +84,7 @@ class CreateTaskScreen extends StatelessWidget {
 
   void _createTask(BuildContext context, TaskModel task, String userId) async {
     debugPrint('_createTask called with task: ${task.title}');
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final taskProvider = context.read<TaskProvider>();
     final success = await taskProvider.createTask(task);
     debugPrint('Task creation success: $success');
     if (success && context.mounted) {

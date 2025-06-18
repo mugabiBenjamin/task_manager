@@ -33,7 +33,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
     _selectedAssignees = List.from(widget.currentAssignees);
     // Load initial assignees
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userProvider = context.read<UserProvider>();
       if (_selectedAssignees.isNotEmpty) {
         userProvider.loadUsersByIds(_selectedAssignees);
       }
@@ -72,10 +72,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
                 setState(() {
                   _isSearching = value.isNotEmpty;
                 });
-                Provider.of<UserProvider>(
-                  context,
-                  listen: false,
-                ).searchUsers(value.trim());
+                context.read<UserProvider>().searchUsers(value.trim());
               },
             ),
             const SizedBox(height: AppConstants.defaultPadding),
@@ -151,13 +148,13 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
                 );
               },
             ),
-            if (Provider.of<TaskProvider>(context).errorMessage != null)
+            if (context.watch<TaskProvider>().errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(
                   top: AppConstants.defaultPadding,
                 ),
                 child: Text(
-                  Provider.of<TaskProvider>(context).errorMessage!,
+                  context.watch<TaskProvider>().errorMessage!,
                   style: const TextStyle(color: AppConstants.errorColor),
                   textAlign: TextAlign.center,
                 ),
@@ -169,7 +166,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
   }
 
   void _saveAssignees() async {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final taskProvider = context.read<TaskProvider>();
     final success = await taskProvider.assignTask(
       widget.taskId,
       _selectedAssignees,
