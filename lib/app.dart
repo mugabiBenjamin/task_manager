@@ -27,17 +27,14 @@ class App extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ProxyProvider<AuthProvider, TaskProvider>(
-          create: (_) => TaskProvider(),
           update: (_, auth, previous) => previous ?? TaskProvider()
             ..updateAuthProvider(auth),
         ),
         ProxyProvider<AuthProvider, LabelProvider>(
-          create: (_) => LabelProvider(),
           update: (_, auth, previous) => previous ?? LabelProvider()
             ..updateAuthProvider(auth),
         ),
         ProxyProvider<AuthProvider, UserProvider>(
-          create: (_) => UserProvider(),
           update: (_, auth, previous) => previous ?? UserProvider()
             ..updateAuthProvider(auth),
         ),
