@@ -258,4 +258,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
     );
   }
+
+  void _loadUserDataInBackground() async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.userModel == null && authProvider.user != null) {
+      try {
+        final userModel = await _userService.getOrCreateUser(
+          authProvider.user!.uid,
+          authProvider.user!.email ?? '',
+          authProvider.user!.displayName ?? '',
+        );
+
+        if (mounted && userModel != null) {
+          authProvider.updateUserModel(userModel);
+
+          if (_displayNameController.text != userModel.displayName) {
+            _displayNameController.text = userModel.displayName;
+          }
+        }
+      } catch (e) {
+        debugPrint('Background user data load failed: $e');
+      }
+    }
+  }
 }
