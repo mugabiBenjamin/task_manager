@@ -26,17 +26,17 @@ class App extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ProxyProvider<AuthProvider, TaskProvider>(
-          update: (_, auth, previous) => previous ?? TaskProvider()
-            ..updateAuthProvider(auth),
+        ChangeNotifierProxyProvider<AuthProvider, TaskProvider>(
+          create: (_) => TaskProvider(),
+          update: (_, auth, previous) => previous!..updateAuthProvider(auth),
         ),
-        ProxyProvider<AuthProvider, LabelProvider>(
-          update: (_, auth, previous) => previous ?? LabelProvider()
-            ..updateAuthProvider(auth),
+        ChangeNotifierProxyProvider<AuthProvider, LabelProvider>(
+          create: (_) => LabelProvider(),
+          update: (_, auth, previous) => previous!..updateAuthProvider(auth),
         ),
-        ProxyProvider<AuthProvider, UserProvider>(
-          update: (_, auth, previous) => previous ?? UserProvider()
-            ..updateAuthProvider(auth),
+        ChangeNotifierProxyProvider<AuthProvider, UserProvider>(
+          create: (_) => UserProvider(),
+          update: (_, auth, previous) => previous!..updateAuthProvider(auth),
         ),
       ],
       child: MaterialApp(
