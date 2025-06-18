@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserModel {
   final String id;
@@ -52,6 +53,16 @@ class UserModel {
       displayName: displayName ?? this.displayName,
       createdAt: createdAt ?? this.createdAt,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+    );
+  }
+
+  factory UserModel.fromFirebaseUser(User firebaseUser) {
+    return UserModel(
+      id: firebaseUser.uid,
+      email: firebaseUser.email ?? '',
+      displayName: firebaseUser.displayName ?? '',
+      createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
+      isEmailVerified: firebaseUser.emailVerified,
     );
   }
 }
