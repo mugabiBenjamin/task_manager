@@ -278,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authProvider = context.read<AuthProvider>();
       final success = await authProvider.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -291,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _signInWithGoogle() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     await authProvider.signInWithGoogle();
   }
 
@@ -346,10 +346,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ElevatedButton(
             onPressed: () async {
               if (emailController.text.isNotEmpty) {
-                final authProvider = Provider.of<AuthProvider>(
-                  context,
-                  listen: false,
-                );
+                final authProvider = context.read<AuthProvider>();
                 final success = await authProvider.resetPassword(
                   emailController.text.trim(),
                 );
