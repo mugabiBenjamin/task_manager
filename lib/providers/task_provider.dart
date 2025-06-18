@@ -125,6 +125,7 @@ class TaskProvider extends ChangeNotifier {
       }
 
       await _taskService.updateTask(taskId, updates);
+      loadTasks(); // Reload tasks to reflect changes
       _setLoading(false);
       return true;
     } catch (e) {
