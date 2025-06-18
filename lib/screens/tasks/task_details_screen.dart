@@ -30,7 +30,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   }
 
   Future<void> _loadTask() async {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final taskProvider = context.read<TaskProvider>();
     try {
       final task = await taskProvider.getTaskById(widget.taskId);
       if (task != null) {
@@ -110,13 +110,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                       );
                     },
                   ),
-                  if (Provider.of<TaskProvider>(context).errorMessage != null)
+                  if (context.watch<TaskProvider>().errorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(
                         top: AppConstants.defaultPadding,
                       ),
                       child: Text(
-                        Provider.of<TaskProvider>(context).errorMessage!,
+                        context.watch<TaskProvider>().errorMessage!,
                         style: const TextStyle(color: AppConstants.errorColor),
                         textAlign: TextAlign.center,
                       ),
@@ -129,7 +129,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   }
 
   void _updateTask(BuildContext context, TaskModel task) async {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final taskProvider = context.read<TaskProvider>();
 
     final updates = {
       'title': task.title,
@@ -171,10 +171,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              final taskProvider = Provider.of<TaskProvider>(
-                context,
-                listen: false,
-              );
+              final taskProvider = context.read<TaskProvider>();
               final success = await taskProvider.deleteTask(widget.taskId);
               if (success && mounted) {
                 Navigator.pop(context); // Close dialog

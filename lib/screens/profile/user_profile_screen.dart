@@ -26,7 +26,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     _displayNameController.text = authProvider.userModel?.displayName ?? '';
     _emailController.text = authProvider.userModel?.email ?? '';
   }
@@ -167,7 +167,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _errorMessage = null;
     });
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     final userId = authProvider.user!.uid;
     final newDisplayName = _displayNameController.text.trim();
 
@@ -195,7 +195,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   void _sendVerificationEmail() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -236,10 +236,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             onPressed: () async {
               Navigator.pop(context);
               if (mounted) {
-                await Provider.of<AuthProvider>(
-                  context,
-                  listen: false,
-                ).signOut();
+                await context.read<AuthProvider>().signOut();
               }
             },
             child: const Text('Sign Out'),
