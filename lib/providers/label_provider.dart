@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/label_model.dart';
 import '../services/label_service.dart';
+import 'auth_provider.dart';
 
 class LabelProvider extends ChangeNotifier {
   final LabelService _labelService = LabelService();
@@ -10,12 +11,29 @@ class LabelProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _currentUserId;
   bool _isInitialized = false;
+  AuthProvider? _authProvider;
 
   // Getters
   List<LabelModel> get labels => _labels;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isInitialized => _isInitialized;
+
+  // Update auth provider dependency
+  void updateAuthProvider(AuthProvider authProvider) {
+    _authProvider = authProvider;
+
+    // Initialize labels if user is authenticated
+    if (authProvider.isAuthenticated && authProvider.user != null) {
+      final userId = authProvider.user!.uid;
+      if (_currentUserId != userId) {
+        initializeForUser(userId);
+      }
+    } else {
+      // Clear data if user is not authenticated
+      clearUserData();
+    }
+  }
 
   // Initialize labels when user authenticates
   Future<void> initializeForUser(String userId) async {
@@ -62,6 +80,8 @@ class LabelProvider extends ChangeNotifier {
 
   // Create new label
   Future<bool> createLabel(LabelModel label) async {
+    if (!_isUserAuthenticated()) return false;
+
     _setLoading(true);
     _clearError();
 
@@ -78,6 +98,8 @@ class LabelProvider extends ChangeNotifier {
 
   // Update existing label
   Future<bool> updateLabel(String labelId, Map<String, dynamic> updates) async {
+    if (!_isUserAuthenticated()) return false;
+
     _setLoading(true);
     _clearError();
 
@@ -94,6 +116,8 @@ class LabelProvider extends ChangeNotifier {
 
   // Delete label
   Future<bool> deleteLabel(String labelId) async {
+    if (!_isUserAuthenticated()) return false;
+
     _setLoading(true);
     _clearError();
 
@@ -110,6 +134,8 @@ class LabelProvider extends ChangeNotifier {
 
   // Get label by ID
   Future<LabelModel?> getLabelById(String labelId) async {
+    if (!_isUserAuthenticated()) return null;
+
     _clearError();
 
     try {
@@ -118,6 +144,15 @@ class LabelProvider extends ChangeNotifier {
       _setError('Failed to get label: $e');
       return null;
     }
+  }
+
+  // Check if user is authenticated
+  bool _isUserAuthenticated() {
+    if (_authProvider == null || !_authProvider!.isAuthenticated) {
+      _setError('User not authenticated');
+      return false;
+    }
+    return true;
   }
 
   // Private helper methods
