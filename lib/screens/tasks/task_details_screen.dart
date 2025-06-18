@@ -26,7 +26,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTask();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTask();
+    });
   }
 
   Future<void> _loadTask() async {
