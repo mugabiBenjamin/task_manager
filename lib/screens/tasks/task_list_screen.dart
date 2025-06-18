@@ -18,10 +18,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
   @override
   void initState() {
     super.initState();
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.isAuthenticated) {
-      context.read<TaskProvider>().loadTasks(authProvider.user!.uid);
-    }
+    // Schedule provider access after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.isAuthenticated) {
+        context.read<TaskProvider>().loadTasks(authProvider.user!.uid);
+      }
+    });
   }
 
   @override
