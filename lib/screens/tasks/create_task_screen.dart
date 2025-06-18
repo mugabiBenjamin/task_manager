@@ -8,8 +8,15 @@ import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
 
-class CreateTaskScreen extends StatelessWidget {
+class CreateTaskScreen extends StatefulWidget {
   const CreateTaskScreen({super.key});
+
+  @override
+  State<CreateTaskScreen> createState() => _CreateTaskScreenState();
+}
+
+class _CreateTaskScreenState extends State<CreateTaskScreen> {
+  final GlobalKey<TaskFormState> _taskFormKey = GlobalKey<TaskFormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +44,7 @@ class CreateTaskScreen extends StatelessWidget {
                   return const Center(child: Text('User not authenticated'));
                 }
                 return TaskForm(
+                  key: _taskFormKey,
                   onSubmit: (task) =>
                       _createTask(context, task, authProvider.user!.uid),
                   submitButtonText: 'Create Task',
@@ -72,12 +80,11 @@ class CreateTaskScreen extends StatelessWidget {
   }
 
   void _submitForm(BuildContext context) {
-    final taskForm = context.findAncestorWidgetOfExactType<TaskForm>();
-    if (taskForm != null) {
+    final taskFormState = _taskFormKey.currentState;
+    if (taskFormState != null) {
       final authProvider = context.read<AuthProvider>();
       if (authProvider.user != null) {
-        // Trigger form submission via TaskForm's submitForm method
-        (taskForm as dynamic).submitForm(authProvider.user!.uid);
+        taskFormState.submitForm(authProvider.user!.uid);
       }
     }
   }
