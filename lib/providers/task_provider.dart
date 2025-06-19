@@ -71,7 +71,7 @@ class TaskProvider extends ChangeNotifier {
         );
   }
 
-  // Create new task (with auth check) - CORRECTED
+  // Create new task (with auth check)
   Future<bool> createTask(TaskModel task) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -82,7 +82,6 @@ class TaskProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Use createdBy instead of creatorId
       final taskWithCreator = task.copyWith(
         createdBy: _authProvider!.user!.uid,
       );
@@ -96,7 +95,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Update existing task (with ownership check) - CORRECTED
+  // Update existing task (with ownership check)
   Future<bool> updateTask(String taskId, Map<String, dynamic> updates) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -107,7 +106,6 @@ class TaskProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Check if user has permission to update task
       final task = await _taskService.getTaskById(taskId);
       if (task == null) {
         _setError('Task not found');
@@ -116,7 +114,6 @@ class TaskProvider extends ChangeNotifier {
       }
 
       final currentUserId = _authProvider!.user!.uid;
-      // Use createdBy and assignedTo instead of creatorId and assignedUsers
       if (task.createdBy != currentUserId &&
           !task.assignedTo.contains(currentUserId)) {
         _setError('You don\'t have permission to update this task');
@@ -125,8 +122,10 @@ class TaskProvider extends ChangeNotifier {
       }
 
       await _taskService.updateTask(taskId, updates);
-      loadTasks(); // Reload tasks to reflect changes
+      // NEW: Reload tasks to ensure UI reflects the latest data
+      loadTasks(currentUserId); // Reload tasks after update
       _setLoading(false);
+      notifyListeners(); // NEW: Notify listeners to rebuild UI
       return true;
     } catch (e) {
       _setError('Failed to update task: $e');
@@ -135,7 +134,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Delete task (with ownership check) - CORRECTED
+  // Delete task (with ownership check)
   Future<bool> deleteTask(String taskId) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -146,7 +145,6 @@ class TaskProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Check if user is the creator
       final task = await _taskService.getTaskById(taskId);
       if (task == null) {
         _setError('Task not found');
@@ -154,7 +152,6 @@ class TaskProvider extends ChangeNotifier {
         return false;
       }
 
-      // Use createdBy instead of creatorId
       if (task.createdBy != _authProvider!.user!.uid) {
         _setError('Only the task creator can delete this task');
         _setLoading(false);
@@ -162,7 +159,10 @@ class TaskProvider extends ChangeNotifier {
       }
 
       await _taskService.deleteTask(taskId);
+      // NEW: Reload tasks after deletion
+      loadTasks(_authProvider!.user!.uid);
       _setLoading(false);
+      notifyListeners(); // NEW: Notify listeners to rebuild UI
       return true;
     } catch (e) {
       _setError('Failed to delete task: $e');
@@ -171,7 +171,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Update task status (with permission check) - CORRECTED
+  // Update task status (with permission check)
   Future<bool> updateTaskStatus(String taskId, TaskStatus status) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -188,7 +188,6 @@ class TaskProvider extends ChangeNotifier {
       }
 
       final currentUserId = _authProvider!.user!.uid;
-      // Use createdBy and assignedTo instead of creatorId and assignedUsers
       if (task.createdBy != currentUserId &&
           !task.assignedTo.contains(currentUserId)) {
         _setError('You don\'t have permission to update this task');
@@ -196,6 +195,9 @@ class TaskProvider extends ChangeNotifier {
       }
 
       await _taskService.updateTaskStatus(taskId, status.value);
+      // NEW: Reload tasks after status update
+      loadTasks(currentUserId);
+      notifyListeners(); // NEW: Notify listeners to rebuild UI
       return true;
     } catch (e) {
       _setError('Failed to update task status: $e');
@@ -203,7 +205,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Assign task to users (creator only) - CORRECTED
+  // Assign task to users (creator only)
   Future<bool> assignTask(String taskId, List<String> userIds) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -219,13 +221,15 @@ class TaskProvider extends ChangeNotifier {
         return false;
       }
 
-      // Use createdBy instead of creatorId
       if (task.createdBy != _authProvider!.user!.uid) {
         _setError('Only the task creator can assign users');
         return false;
       }
 
       await _taskService.assignTask(taskId, userIds);
+      // NEW: Reload tasks after assignment
+      loadTasks(_authProvider!.user!.uid);
+      notifyListeners(); // NEW: Notify listeners to rebuild UI
       return true;
     } catch (e) {
       _setError('Failed to assign task: $e');
@@ -359,7 +363,7 @@ class TaskProvider extends ChangeNotifier {
     };
   }
 
-  // Get user's tasks (created or assigned) - CORRECTED
+  // Get user's tasks (created or assigned)
   List<TaskModel> getUserTasks() {
     if (_authProvider?.user?.uid == null) return [];
 
@@ -373,7 +377,7 @@ class TaskProvider extends ChangeNotifier {
         .toList();
   }
 
-  // Get tasks created by user - CORRECTED
+  // Get tasks created by user
   List<TaskModel> getCreatedTasks() {
     if (_authProvider?.user?.uid == null) return [];
 
@@ -381,7 +385,7 @@ class TaskProvider extends ChangeNotifier {
     return _tasks.where((task) => task.createdBy == currentUserId).toList();
   }
 
-  // Get tasks assigned to user - CORRECTED
+  // Get tasks assigned to user
   List<TaskModel> getAssignedTasks() {
     if (_authProvider?.user?.uid == null) return [];
 
