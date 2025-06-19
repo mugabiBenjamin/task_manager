@@ -84,6 +84,7 @@ class TaskCard extends StatelessWidget {
                     task.description,
                     style: AppConstants.bodyStyle.copyWith(
                       color: AppConstants.textSecondaryColor,
+                      fontSize: 14,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -100,7 +101,6 @@ class TaskCard extends StatelessWidget {
                         size: AppConstants.iconSize,
                         color: _getPriorityColor(task.priority),
                       ),
-                      const SizedBox(width: 4),
                       Text(
                         task.priority.displayName,
                         style: AppConstants.bodyStyle.copyWith(
