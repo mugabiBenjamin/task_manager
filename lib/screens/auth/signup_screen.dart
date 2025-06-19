@@ -48,7 +48,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 const Icon(
                   Icons.person_add,
                   size: 80,
-                  color: Colors.deepPurple,
+                  color: AppConstants.primaryColor,
                 ),
                 const SizedBox(height: 24),
                 const Text(

@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.task_alt, size: 80, color: Colors.deepPurple),
+                const Icon(Icons.task_alt, size: 80, color: AppConstants.primaryColor),
                 const SizedBox(height: 24),
                 const Text(
                   'Task Manager',
