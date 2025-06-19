@@ -7,7 +7,7 @@ import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../providers/auth_provider.dart'; // NEW: Import AuthProvider
+import '../../providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/loading_widget.dart';
@@ -45,13 +45,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     final taskProvider = context.watch<TaskProvider>();
     final userProvider = context.watch<UserProvider>();
     final authProvider = context
-        .watch<AuthProvider>(); // NEW: Access AuthProvider
+        .watch<AuthProvider>();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task Details'),
         actions: [
-          // CHANGED: Use authProvider instead of taskProvider and simplify task creator check
           if (authProvider.isAuthenticated)
             FutureBuilder<TaskModel?>(
               future: taskProvider.getTaskById(widget.taskId),

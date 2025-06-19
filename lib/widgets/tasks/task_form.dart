@@ -17,14 +17,14 @@ class TaskForm extends StatefulWidget {
   final TaskModel? task;
   final Function(TaskModel) onSubmit;
   final String submitButtonText;
-  final VoidCallback? onFormReady; // Add this
+  final VoidCallback? onFormReady;
 
   const TaskForm({
     super.key,
     this.task,
     required this.onSubmit,
     this.submitButtonText = 'Save Task',
-    this.onFormReady, // Add this
+    this.onFormReady,
   });
 
   @override
