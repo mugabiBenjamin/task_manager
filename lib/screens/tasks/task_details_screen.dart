@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/enums/task_status.dart';
 import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/task_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/auth_provider.dart'; // NEW: Import AuthProvider
 import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
-import '../../widgets/tasks/task_form.dart';
+import '../../widgets/common/loading_widget.dart';
+import '../../widgets/tasks/status_dropdown.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -19,144 +23,186 @@ class TaskDetailsScreen extends StatefulWidget {
 }
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
-  TaskModel? _task;
-  bool _isLoading = true;
-  String? _errorMessage;
+  late Future<TaskModel?> _taskFuture;
+  final _formKey = GlobalKey<FormState>();
+  final _descriptionController = TextEditingController();
+  TaskStatus? _selectedStatus;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTask();
-    });
+    _taskFuture = context.read<TaskProvider>().getTaskById(widget.taskId);
   }
 
-  Future<void> _loadTask() async {
-    final taskProvider = context.read<TaskProvider>();
-    try {
-      final task = await taskProvider.getTaskById(widget.taskId);
-      if (task != null) {
-        setState(() {
-          _task = task;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Task not found';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load task: $e';
-        _isLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final taskProvider = context.watch<TaskProvider>();
+    final userProvider = context.watch<UserProvider>();
+    final authProvider = context
+        .watch<AuthProvider>(); // NEW: Access AuthProvider
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppConstants.editTaskTitle),
+        title: const Text('Task Details'),
         actions: [
-          if (_task != null)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _showDeleteDialog(context),
-            ),
-          if (_task != null)
-            IconButton(
-              icon: const Icon(Icons.assignment),
-              onPressed: () => Navigator.pushNamed(
-                context,
-                AppRoutes.taskAssignment,
-                arguments: {
-                  'taskId': widget.taskId,
-                  'currentAssignees': _task!.assignedTo,
-                },
-              ),
+          // CHANGED: Use authProvider instead of taskProvider and simplify task creator check
+          if (authProvider.isAuthenticated)
+            FutureBuilder<TaskModel?>(
+              future: taskProvider.getTaskById(widget.taskId),
+              builder: (context, snapshot) {
+                if (snapshot.hasData &&
+                    snapshot.data != null &&
+                    snapshot.data!.createdBy == authProvider.user!.uid) {
+                  return IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _showDeleteDialog(context),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
+      body: FutureBuilder<TaskModel?>(
+        future: _taskFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: LoadingWidget());
+          }
+          if (snapshot.hasError) {
+            return Center(
               child: Text(
-                _errorMessage!,
+                'Error: ${snapshot.error}',
                 style: const TextStyle(color: AppConstants.errorColor),
               ),
-            )
-          : _task != null
-          ? SingleChildScrollView(
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text('Task not found'));
+          }
+
+          final task = snapshot.data!;
+          _descriptionController.text = task.description;
+          _selectedStatus ??= task.status;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppConstants.defaultPadding),
+            child: Form(
+              key: _formKey,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TaskForm(
-                    task: _task,
-                    submitButtonText: 'Update Task',
-                    onSubmit: (updatedTask) =>
-                        _updateTask(context, updatedTask),
+                  Text(task.title, style: AppConstants.headlineStyle),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 4,
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
-                  Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return CustomButton(
-                        text: taskProvider.isLoading
-                            ? 'Updating...'
-                            : 'Update Task',
-                        onPressed: taskProvider.isLoading
-                            ? null
-                            : () => _updateTask(context, _task!),
+                  StatusDropdown(
+                    value: _selectedStatus!,
+                    onChanged: (TaskStatus? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedStatus = newValue;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  Text(
+                    'Priority: ${task.priority.displayName}',
+                    style: AppConstants.bodyStyle,
+                  ),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  Text(
+                    'Start Date: ${DateHelper.formatDate(task.startDate)}',
+                    style: AppConstants.bodyStyle,
+                  ),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  Text(
+                    'Due Date: ${DateHelper.formatDate(task.dueDate)}',
+                    style: AppConstants.bodyStyle,
+                  ),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  Text(
+                    'Created By: ${userProvider.users.firstWhere(
+                      (user) => user.id == task.createdBy,
+                      orElse: () => UserModel(id: '', email: 'Unknown', displayName: 'Unknown', createdAt: DateTime.now(), isEmailVerified: false),
+                    ).displayName}',
+                    style: AppConstants.bodyStyle,
+                  ),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  ListTile(
+                    title: const Text('Assignees'),
+                    trailing: const Icon(Icons.person_add),
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.taskAssignment,
+                        arguments: {
+                          'taskId': task.id,
+                          'currentAssignees': task.assignedTo,
+                        },
                       );
                     },
                   ),
-                  if (context.watch<TaskProvider>().errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: AppConstants.defaultPadding,
-                      ),
-                      child: Text(
-                        context.watch<TaskProvider>().errorMessage!,
-                        style: const TextStyle(color: AppConstants.errorColor),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                  const SizedBox(height: AppConstants.defaultPadding),
+                  Wrap(
+                    spacing: AppConstants.smallPadding,
+                    runSpacing: AppConstants.smallPadding,
+                    children: task.labels.map((labelId) {
+                      return Chip(
+                        label: Text(
+                          'Label #$labelId',
+                          style: AppConstants.bodyStyle.copyWith(fontSize: 12),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: AppConstants.largePadding),
+                  CustomButton(
+                    text: 'Save Changes',
+                    onPressed: () => _updateTask(context, task),
+                  ),
                 ],
               ),
-            )
-          : const SizedBox.shrink(),
+            ),
+          );
+        },
+      ),
     );
   }
 
   void _updateTask(BuildContext context, TaskModel task) async {
-    final taskProvider = context.read<TaskProvider>();
+    if (_formKey.currentState!.validate()) {
+      final taskProvider = context.read<TaskProvider>();
+      final updates = {
+        'description': _descriptionController.text.trim(),
+        'status': _selectedStatus!.value,
+        'updatedAt': DateTime.now(),
+      };
 
-    final updates = {
-      'title': task.title,
-      'description': task.description,
-      'status': task.status.value,
-      'priority': task.priority.value,
-      'startDate': task.startDate != null
-          ? DateHelper.parseDate(
-              DateFormat('yyyy-MM-dd').format(task.startDate!),
-            )
-          : null,
-      'dueDate': task.dueDate != null
-          ? DateHelper.parseDate(DateFormat('yyyy-MM-dd').format(task.dueDate!))
-          : null,
-      'assignedTo': task.assignedTo,
-      'labels': task.labels,
-      'updatedAt': DateTime.now(),
-    };
-
-    final success = await taskProvider.updateTask(widget.taskId, updates);
-    if (success && mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppConstants.successMessage)),
-      );
+      final success = await taskProvider.updateTask(widget.taskId, updates);
+      if (success && mounted) {
+        taskProvider.loadTasks(
+          context.read<AuthProvider>().user?.uid,
+        ); // CHANGED: Use AuthProvider for user ID
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppConstants.successMessage)),
+        );
+      }
     }
   }
 
