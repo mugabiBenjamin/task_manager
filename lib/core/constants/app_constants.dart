@@ -6,8 +6,8 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // Colors
-  static const Color primaryColor = Colors.deepPurple;
-  static const Color secondaryColor = Colors.teal;
+  static const Color primaryColor = Colors.teal;
+  static const Color secondaryColor = Colors.cyan;
   static const Color accentColor = Colors.amber;
   static const Color backgroundColor = Colors.white;
   static const Color errorColor = Colors.red;
