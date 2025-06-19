@@ -18,10 +18,15 @@ class TaskCard extends StatelessWidget {
         task.status != TaskStatus.complete;
 
     return Card(
-      elevation: 2,
+      color: AppConstants.primaryColor.withValues(alpha: 0.05),
+      elevation: 0,
       margin: const EdgeInsets.only(bottom: AppConstants.defaultPadding),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        side: BorderSide(
+          color: AppConstants.primaryColor.withValues(alpha: 0.5),
+          width: 1, // Border thickness
+        ),
       ),
       child: InkWell(
         onTap: onTap,
