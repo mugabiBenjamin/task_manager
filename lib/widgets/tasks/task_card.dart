@@ -114,7 +114,7 @@ class TaskCard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.calendar_today,
-                        size: AppConstants.iconSize,
+                        size: 14,
                         color: isOverdue
                             ? AppConstants.errorColor
                             : AppConstants.textSecondaryColor,
@@ -128,7 +128,7 @@ class TaskCard extends StatelessWidget {
                           color: isOverdue
                               ? AppConstants.errorColor
                               : AppConstants.textSecondaryColor,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                       ),
                     ],
