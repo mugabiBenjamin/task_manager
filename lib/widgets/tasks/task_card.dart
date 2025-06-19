@@ -98,7 +98,7 @@ class TaskCard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.priority_high,
-                        size: AppConstants.iconSize,
+                        size: 18,
                         color: _getPriorityColor(task.priority),
                       ),
                       Text(
