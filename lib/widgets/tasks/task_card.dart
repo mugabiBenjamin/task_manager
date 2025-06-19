@@ -84,41 +84,49 @@ class TaskCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              const SizedBox(height: AppConstants.smallPadding),
+              const SizedBox(height: 30),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(
-                    Icons.priority_high,
-                    size: AppConstants.iconSize,
-                    color: _getPriorityColor(task.priority),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.priority_high,
+                        size: AppConstants.iconSize,
+                        color: _getPriorityColor(task.priority),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        task.priority.displayName,
+                        style: AppConstants.bodyStyle.copyWith(
+                          color: _getPriorityColor(task.priority),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    task.priority.displayName,
-                    style: AppConstants.bodyStyle.copyWith(
-                      color: _getPriorityColor(task.priority),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.defaultPadding),
-                  Icon(
-                    Icons.calendar_today,
-                    size: AppConstants.iconSize,
-                    color: isOverdue
-                        ? AppConstants.errorColor
-                        : AppConstants.textSecondaryColor,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    task.dueDate != null
-                        ? DateHelper.formatDate(task.dueDate)
-                        : 'No due date',
-                    style: AppConstants.bodyStyle.copyWith(
-                      color: isOverdue
-                          ? AppConstants.errorColor
-                          : AppConstants.textSecondaryColor,
-                      fontSize: 14,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: AppConstants.iconSize,
+                        color: isOverdue
+                            ? AppConstants.errorColor
+                            : AppConstants.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        task.dueDate != null
+                            ? DateHelper.formatDate(task.dueDate)
+                            : 'No due date',
+                        style: AppConstants.bodyStyle.copyWith(
+                          color: isOverdue
+                              ? AppConstants.errorColor
+                              : AppConstants.textSecondaryColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
