@@ -153,6 +153,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
     final success = await taskProvider.updateTask(widget.taskId, updates);
     if (success && mounted) {
+      taskProvider.loadTasks();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
