@@ -17,14 +17,16 @@ class TaskForm extends StatefulWidget {
   final TaskModel? task;
   final Function(TaskModel) onSubmit;
   final String submitButtonText;
-  final VoidCallback? onFormReady; // Add this
+  final VoidCallback? onFormReady;
+  final bool isEditing;
 
   const TaskForm({
     super.key,
     this.task,
     required this.onSubmit,
     this.submitButtonText = 'Save Task',
-    this.onFormReady, // Add this
+    this.onFormReady,
+    this.isEditing = false,
   });
 
   @override
@@ -85,12 +87,37 @@ class TaskFormState extends State<TaskForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomTextField(
-            controller: _titleController,
-            labelText: 'Task Title',
-            validator: Validators.validateTaskTitle,
-            onChanged: (value) {},
-          ),
+          widget.isEditing
+              ? // IMMUTABLE title display
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Task Title',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        widget.task?.title ?? '',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+              : // EDITABLE title field
+                CustomTextField(
+                  controller: _titleController,
+                  labelText: 'Task Title',
+                  validator: Validators.validateTaskTitle,
+                  onChanged: (value) {},
+                ),
           const SizedBox(height: AppConstants.defaultPadding),
           CustomTextField(
             controller: _descriptionController,
@@ -111,38 +138,118 @@ class TaskFormState extends State<TaskForm> {
             },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
-          PriorityDropdown(
-            value: _selectedPriority,
-            onChanged: (TaskPriority? newValue) {
-              if (newValue != null) {
-                setState(() {
-                  _selectedPriority = newValue;
-                });
-              }
-            },
-          ),
+          widget.isEditing
+              ? // IMMUTABLE priority display
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Priority',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _selectedPriority.displayName,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+              : // EDITABLE priority dropdown
+                PriorityDropdown(
+                  value: _selectedPriority,
+                  onChanged: (TaskPriority? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedPriority = newValue;
+                      });
+                    }
+                  },
+                ),
           const SizedBox(height: AppConstants.defaultPadding),
-          CustomTextField(
-            controller: _startDateController,
-            labelText: 'Start Date',
-            readOnly: true,
-            onTap: () => _selectDate(context, isStartDate: true),
-            validator: Validators.validateStartDate,
-            onChanged: (value) {
-              // Revalidate due date when start date changes
-              _formKey.currentState?.validate();
-            },
-          ),
+          widget.isEditing
+              ? // IMMUTABLE start date display
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Start Date',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _startDateController.text.isEmpty
+                            ? 'Not set'
+                            : _startDateController.text,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+              : // EDITABLE start date field
+                CustomTextField(
+                  controller: _startDateController,
+                  labelText: 'Start Date',
+                  readOnly: true,
+                  onTap: () => _selectDate(context, isStartDate: true),
+                  validator: Validators.validateStartDate,
+                  onChanged: (value) {
+                    _formKey.currentState?.validate();
+                  },
+                ),
           const SizedBox(height: AppConstants.defaultPadding),
-          CustomTextField(
-            controller: _dueDateController,
-            labelText: 'Due Date',
-            readOnly: true,
-            onTap: () => _selectDate(context, isStartDate: false),
-            validator: (value) =>
-                Validators.validateDueDate(value, _startDateController.text),
-            onChanged: (value) {},
-          ),
+          widget.isEditing
+              ? // IMMUTABLE due date display
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Due Date',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _dueDateController.text.isEmpty
+                            ? 'Not set'
+                            : _dueDateController.text,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                )
+              : // EDITABLE due date field
+                CustomTextField(
+                  controller: _dueDateController,
+                  labelText: 'Due Date',
+                  readOnly: true,
+                  onTap: () => _selectDate(context, isStartDate: false),
+                  validator: (value) => Validators.validateDueDate(
+                    value,
+                    _startDateController.text,
+                  ),
+                  onChanged: (value) {},
+                ),
           const SizedBox(height: AppConstants.defaultPadding),
           ListTile(
             title: const Text('Assignees'),
