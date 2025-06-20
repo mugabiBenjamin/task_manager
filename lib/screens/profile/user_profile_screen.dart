@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import 'dart:async';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -48,6 +49,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void dispose() {
     _displayNameController.dispose();
     _emailController.dispose();
+    _verificationTimer?.cancel();
     super.dispose();
   }
 
@@ -218,8 +220,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       final success = await authProvider.sendEmailVerification();
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Verification email sent')),
+          const SnackBar(
+            content: Text(
+              'Verification email sent. Please check your email and refresh this page after verifying.',
+            ),
+          ),
         );
+        _startEmailVerificationCheck();
       }
       if (mounted) {
         setState(() {
@@ -280,5 +287,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         debugPrint('Background user data load failed: $e');
       }
     }
+  }
+
+  Timer? _verificationTimer;
+
+  void _startEmailVerificationCheck() {
+    _verificationTimer?.cancel();
+    _verificationTimer = Timer.periodic(const Duration(seconds: 3), (
+      timer,
+    ) async {
+      final authProvider = context.read<AuthProvider>();
+      await authProvider.refreshEmailVerificationStatus();
+
+      if (authProvider.userModel?.isEmailVerified == true) {
+        timer.cancel();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Email verified successfully!')),
+          );
+        }
+      }
+
+      // Stop checking after 5 minutes
+      if (timer.tick > 100) {
+        timer.cancel();
+      }
+    });
   }
 }
