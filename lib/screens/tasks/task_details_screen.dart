@@ -6,7 +6,9 @@ import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
 import '../../providers/task_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
+import '../../providers/auth_provider.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -18,6 +20,7 @@ class TaskDetailsScreen extends StatefulWidget {
 }
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
+  final GlobalKey<TaskFormState> _formKey = GlobalKey<TaskFormState>();
   TaskModel? _task;
   bool _isLoading = true;
   String? _errorMessage;
@@ -93,13 +96,54 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               child: Column(
                 children: [
                   TaskForm(
+                    key: _formKey,
                     task: _task,
                     isEditing: true,
                     submitButtonText: 'Update Task',
                     onSubmit: (updatedTask) =>
                         _updateTask(context, updatedTask),
+                    onFormReady: () {},
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
+                  Consumer<TaskProvider>(
+                    builder: (context, taskProvider, child) {
+                      return CustomButton(
+                        text: taskProvider.isLoading
+                            ? 'Updating...'
+                            : 'Update Task',
+                        onPressed: taskProvider.isLoading
+                            ? null
+                            : () {
+                                final authProvider = context
+                                    .read<AuthProvider>();
+                                if (authProvider.user?.uid != null) {
+                                  _formKey.currentState?.submitForm(
+                                    authProvider.user!.uid,
+                                  );
+                                }
+                              },
+                      );
+                    },
+                  ),
+                  Consumer<TaskProvider>(
+                    builder: (context, taskProvider, child) {
+                      if (taskProvider.errorMessage != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppConstants.defaultPadding,
+                          ),
+                          child: Text(
+                            taskProvider.errorMessage!,
+                            style: const TextStyle(
+                              color: AppConstants.errorColor,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ],
               ),
             )
