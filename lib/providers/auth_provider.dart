@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -254,11 +255,35 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshEmailVerificationStatus() async {
+    if (_user == null) return;
+
+    try {
+      // Reload Firebase user to get fresh email verification status
+      await _user!.reload();
+      _user = _authService.currentUser; // Get updated user instance
+
+      // Update UserModel with fresh verification status
+      if (_userModel != null) {
+        _userModel = _userModel!.copyWith(
+          isEmailVerified: _user!.emailVerified,
+        );
+        _cachedUserModel = _userModel;
+        notifyListeners();
+      }
+    } catch (e) {
+      // Silent fail - don't show error for background refresh
+      debugPrint('Failed to refresh email verification: $e');
+    }
+  }
+
   Future<bool> sendEmailVerification() async {
     _clearError();
 
     try {
       await _authService.sendEmailVerification();
+      _startPeriodicVerificationCheck();
+
       return true;
     } catch (e) {
       _setError(_parseFirebaseError(e));
@@ -276,6 +301,22 @@ class AuthProvider extends ChangeNotifier {
       _setError(_parseFirebaseError(e));
       return false;
     }
+  }
+
+  Timer? _verificationCheckTimer;
+
+  void _startPeriodicVerificationCheck() {
+    _verificationCheckTimer?.cancel();
+    _verificationCheckTimer = Timer.periodic(const Duration(seconds: 5), (
+      timer,
+    ) async {
+      await refreshEmailVerificationStatus();
+
+      // Stop if verified or after 10 minutes
+      if (_userModel?.isEmailVerified == true || timer.tick > 120) {
+        timer.cancel();
+      }
+    });
   }
 
   void _setLoading(bool loading) {
