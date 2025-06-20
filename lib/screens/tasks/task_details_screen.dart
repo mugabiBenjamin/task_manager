@@ -6,7 +6,6 @@ import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
 import '../../providers/task_provider.dart';
 import '../../routes/app_routes.dart';
-import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
@@ -95,34 +94,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 children: [
                   TaskForm(
                     task: _task,
+                    isEditing: true,
                     submitButtonText: 'Update Task',
                     onSubmit: (updatedTask) =>
                         _updateTask(context, updatedTask),
                   ),
                   const SizedBox(height: AppConstants.defaultPadding),
-                  Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return CustomButton(
-                        text: taskProvider.isLoading
-                            ? 'Updating...'
-                            : 'Update Task',
-                        onPressed: taskProvider.isLoading
-                            ? null
-                            : () => _updateTask(context, _task!),
-                      );
-                    },
-                  ),
-                  if (context.watch<TaskProvider>().errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: AppConstants.defaultPadding,
-                      ),
-                      child: Text(
-                        context.watch<TaskProvider>().errorMessage!,
-                        style: const TextStyle(color: AppConstants.errorColor),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
                 ],
               ),
             )
@@ -153,7 +130,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
     final success = await taskProvider.updateTask(widget.taskId, updates);
     if (success && mounted) {
-      taskProvider.loadTasks();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
