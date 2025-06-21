@@ -3,14 +3,16 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../core/constants/firebase_constants.dart';
+import 'user_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserService _userService = UserService();
 
   User? get currentUser => _auth.currentUser;
-  
+
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // Sign up with email and password
@@ -60,13 +62,16 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential result = await _auth.signInWithCredential(credential);
+      final UserCredential result = await _auth.signInWithCredential(
+        credential,
+      );
 
       // Create user document if new user
       if (result.user != null) {
@@ -147,6 +152,29 @@ class AuthService {
       }
     } catch (e) {
       throw Exception('Failed to create user document: $e');
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    try {
+      if (_auth.currentUser == null) return false;
+
+      final userId = _auth.currentUser!.uid;
+      
+      // Delete user data using UserService
+      await _userService.deleteUser(userId);
+      
+      // Delete Firebase Auth account
+      await _auth.currentUser!.delete();
+      
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw Exception('Please sign in again to delete your account');
+      }
+      throw Exception('Failed to delete account: ${e.message}');
+    } catch (e) {
+      throw Exception('Failed to delete account: $e');
     }
   }
 }
