@@ -5,6 +5,7 @@ import 'firestore_service.dart';
 
 class UserService {
   final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Get user by ID
   Future<UserModel?> getUserById(String userId) async {
@@ -131,6 +132,32 @@ class UserService {
       return await createUserDocument(userId, email, displayName);
     } catch (e) {
       throw Exception('Failed to get or create user: $e');
+    }
+  }
+
+  Future<void> deleteUser(String userId) async {
+    try {
+      final batch = _firestore.batch();
+
+      // Delete user document
+      final userDoc = _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .doc(userId);
+      batch.delete(userDoc);
+
+      // Delete user's tasks (if you have tasks collection)
+      final tasksQuery = await _firestore
+          .collection('tasks')
+          .where('createdBy', isEqualTo: userId)
+          .get();
+
+      for (var doc in tasksQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to delete user data: $e');
     }
   }
 }
