@@ -53,6 +53,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     super.dispose();
   }
 
+  void _deleteAccount() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final authProvider = context.read<AuthProvider>();
+
+    try {
+      final success = await authProvider.deleteAccount();
+      if (!success && mounted) {
+        setState(() {
+          _errorMessage = authProvider.errorMessage;
+          _isLoading = false;
+        });
+      }
+      // Navigation handled by AuthProvider
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to delete account: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,6 +190,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
+                  const SizedBox(height: AppConstants.largePadding),
+                  CustomButton(
+                    text: 'Delete Account',
+                    backgroundColor: Colors.red.shade700,
+                    onPressed: () => _showDeleteAccountDialog(context),
+                  ),
                 ],
               ),
             ),
@@ -313,5 +344,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         timer.cancel();
       }
     });
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              _deleteAccount();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 }
