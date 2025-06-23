@@ -139,6 +139,20 @@ class AuthProvider extends ChangeNotifier {
           return 'An account with this email already exists.';
         case 'operation-not-allowed':
           return 'This sign-in method is not enabled. Please contact support.';
+        case 'requires-recent-login':
+          return 'Please sign out and sign back in to complete this action.';
+        case 'expired-action-code':
+          return 'This verification link has expired. Please request a new one.';
+        case 'invalid-action-code':
+          return 'This verification link is invalid. Please request a new one.';
+        case 'missing-email':
+          return 'Please enter your email address.';
+        case 'missing-password':
+          return 'Please enter your password.';
+        case 'credential-already-in-use':
+          return 'This account is already linked to another user.';
+        case 'account-exists-with-different-credential':
+          return 'An account with this email already exists. Please sign in with your email and password.';
         default:
           return 'Authentication failed. Please try again.';
       }
