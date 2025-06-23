@@ -196,6 +196,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     backgroundColor: Colors.red.shade700,
                     onPressed: () => _showDeleteAccountDialog(context),
                   ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Version: ${AppConstants.appVersion}',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
                 ],
               ),
             ),
