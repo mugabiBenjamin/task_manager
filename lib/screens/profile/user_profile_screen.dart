@@ -192,7 +192,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                   const SizedBox(height: AppConstants.largePadding),
                   CustomButton(
-                    text: 'Delete Account',
+                    text: 'Delete My Account',
                     backgroundColor: Colors.red.shade700,
                     onPressed: () => _showDeleteAccountDialog(context),
                   ),
