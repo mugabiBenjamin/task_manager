@@ -1,5 +1,3 @@
-// lib/core/utils/validators.dart
-
 import 'package:intl/intl.dart';
 import '../constants/app_constants.dart';
 

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // ADDED: Import for Provider
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/task_priority.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/utils/date_helper.dart';
+import '../../models/label_model.dart';
 import '../../models/task_model.dart';
+import '../../providers/label_provider.dart'; // ADDED: Import for LabelProvider
 
 class TaskCard extends StatelessWidget {
   final TaskModel task;
@@ -25,7 +28,7 @@ class TaskCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
         side: BorderSide(
           color: AppConstants.primaryColor.withValues(alpha: 0.5),
-          width: 1, // Border thickness
+          width: 1,
         ),
       ),
       child: InkWell(
@@ -140,23 +143,47 @@ class TaskCard extends StatelessWidget {
                   padding: const EdgeInsets.only(
                     top: AppConstants.smallPadding,
                   ),
-                  child: Wrap(
-                    spacing: AppConstants.smallPadding,
-                    runSpacing: AppConstants.smallPadding,
-                    children: task.labels.map((labelId) {
-                      // Placeholder for label display; integrate with LabelProvider when available
-                      return Chip(
-                        label: Text(
-                          'Label #$labelId',
-                          style: AppConstants.bodyStyle.copyWith(fontSize: 12),
-                        ),
-                        backgroundColor: AppConstants.textSecondaryColor
-                            .withValues(alpha: 0.2),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.smallPadding,
-                        ),
+                  child: Consumer<LabelProvider>(
+                    // ADDED: Wrap label display in Consumer to access LabelProvider
+                    builder: (context, labelProvider, child) {
+                      return Wrap(
+                        spacing: AppConstants.smallPadding,
+                        runSpacing: AppConstants.smallPadding,
+                        children: task.labels.map((labelId) {
+                          // CHANGED: Replace placeholder with actual label data
+                          final label = labelProvider.labels.firstWhere(
+                            (label) => label.id == labelId,
+                            orElse: () => LabelModel(
+                              id: labelId,
+                              name: 'Unknown',
+                              color: '#808080', // Fallback for unknown labels
+                              createdBy: '',
+                              createdAt: DateTime.now(),
+                            ),
+                          );
+                          return Chip(
+                            label: Text(
+                              label
+                                  .name, // CHANGED: Use label.name instead of 'Label #$labelId'
+                              style: AppConstants.bodyStyle.copyWith(
+                                fontSize: 12,
+                              ),
+                            ),
+                            backgroundColor:
+                                Color(
+                                  int.parse(
+                                    label.color.replaceFirst('#', '0xFF'),
+                                  ),
+                                ).withValues(
+                                  alpha: 0.2,
+                                ), // CHANGED: Use label.color
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.smallPadding,
+                            ),
+                          );
+                        }).toList(),
                       );
-                    }).toList(),
+                    },
                   ),
                 ),
             ],

@@ -54,12 +54,16 @@ class TaskFormState extends State<TaskForm> {
     _startDateController = TextEditingController(
       text: widget.task?.startDate != null
           ? DateFormat('yyyy-MM-dd').format(widget.task!.startDate!)
-          : '',
+          : DateFormat(
+              'yyyy-MM-dd',
+            ).format(DateTime.now()), // Added default to today
     );
     _dueDateController = TextEditingController(
       text: widget.task?.dueDate != null
           ? DateFormat('yyyy-MM-dd').format(widget.task!.dueDate!)
-          : '',
+          : DateFormat('yyyy-MM-dd').format(
+              DateTime.now().add(const Duration(days: 1)),
+            ), // Added default to tomorrow
     );
     _selectedStatus = widget.task?.status ?? TaskStatus.notStarted;
     _selectedPriority = widget.task?.priority ?? TaskPriority.medium;
