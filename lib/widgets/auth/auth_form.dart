@@ -11,7 +11,6 @@ class AuthForm extends StatefulWidget {
     required String email,
     required String password,
     String? displayName,
-    String? confirmPassword,
   })
   onSubmit;
   final VoidCallback onGoogleSignIn;
@@ -35,16 +34,13 @@ class _AuthFormState extends State<AuthForm> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _displayNameController = TextEditingController();
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _displayNameController.dispose();
     super.dispose();
   }
@@ -103,35 +99,15 @@ class _AuthFormState extends State<AuthForm> {
             onChanged: (value) {},
           ),
           const SizedBox(height: AppConstants.defaultPadding),
-          if (!widget.isLogin)
-            CustomTextField(
-              controller: _confirmPasswordController,
-              labelText: 'Confirm Password',
-              prefixIcon: Icons.lock_outline,
-              suffixIcon: _obscureConfirmPassword
-                  ? Icons.visibility
-                  : Icons.visibility_off,
-              onSuffixIconTap: () {
-                setState(() {
-                  _obscureConfirmPassword = !_obscureConfirmPassword;
-                });
-              },
-              obscureText: _obscureConfirmPassword,
-              validator: (value) => Validators.validateConfirmPassword(
-                _passwordController.text,
-                value,
-              ),
-              onChanged: (value) {},
-            ),
-          if (!widget.isLogin)
-            const SizedBox(height: AppConstants.defaultPadding),
+          // CHANGED: Use AuthProvider's error mapping directly
           if (widget.errorMessage != null)
             Padding(
               padding: const EdgeInsets.only(
                 bottom: AppConstants.defaultPadding,
               ),
               child: Text(
-                widget.errorMessage!,
+                widget
+                    .errorMessage!, // Using pre-mapped error from AuthProvider
                 style: const TextStyle(color: AppConstants.errorColor),
                 textAlign: TextAlign.center,
               ),
@@ -183,14 +159,12 @@ class _AuthFormState extends State<AuthForm> {
   }
 
   void _handleSubmit() {
+    // ADDED: Form validation before submission
     if (_formKey.currentState!.validate()) {
       widget.onSubmit(
-        email: _emailController.text.trim(),
+        email: _emailController.text.trim(), // ADDED: trim whitespace
         password: _passwordController.text,
         displayName: widget.isLogin ? null : _displayNameController.text.trim(),
-        confirmPassword: widget.isLogin
-            ? null
-            : _confirmPasswordController.text,
       );
     }
   }
