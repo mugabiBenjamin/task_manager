@@ -74,7 +74,7 @@ class AppDrawer extends StatelessWidget {
               title: const Text('Labels', style: drawerTextStyle),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to labels
+                Navigator.pushNamed(context, AppRoutes.labels);
               },
             ),
             ListTile(
@@ -82,7 +82,7 @@ class AppDrawer extends StatelessWidget {
               title: const Text('Starred', style: drawerTextStyle),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to starred tasks
+                Navigator.pushNamed(context, AppRoutes.starredTasks);
               },
             ),
             ListTile(
@@ -90,7 +90,7 @@ class AppDrawer extends StatelessWidget {
               title: const Text('Settings', style: drawerTextStyle),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to settings
+                Navigator.pushNamed(context, AppRoutes.settings);
               },
             ),
             ListTile(
@@ -98,7 +98,7 @@ class AppDrawer extends StatelessWidget {
               title: const Text('Help', style: drawerTextStyle),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to help
+                Navigator.pushNamed(context, AppRoutes.help);
               },
             ),
             const Spacer(),
