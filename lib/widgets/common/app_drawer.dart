@@ -54,11 +54,27 @@ class AppDrawer extends StatelessWidget {
             ),
             // Menu items
             ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('New Task', style: drawerTextStyle),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.createTask);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Profile', style: drawerTextStyle),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.userProfile);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.label),
+              title: const Text('Labels', style: drawerTextStyle),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: Navigate to labels
               },
             ),
             ListTile(
