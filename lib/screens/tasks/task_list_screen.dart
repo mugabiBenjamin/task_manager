@@ -6,6 +6,7 @@ import '../../providers/task_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/tasks/task_card.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -32,6 +33,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppConstants.taskListTitle),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.person),
@@ -40,6 +47,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, child) {
           if (taskProvider.isLoading) {
