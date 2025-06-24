@@ -7,6 +7,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/loading_widget.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class TaskAssignmentScreen extends StatefulWidget {
   final String taskId;
@@ -51,6 +52,12 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Assign Task'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
@@ -59,6 +66,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
           ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: Padding(
         padding: const EdgeInsets.all(AppConstants.defaultPadding),
         child: Column(
