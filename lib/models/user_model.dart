@@ -7,6 +7,7 @@ class UserModel {
   final String displayName;
   final DateTime createdAt;
   final bool isEmailVerified;
+  final bool emailNotifications;
 
   UserModel({
     required this.id,
@@ -14,6 +15,7 @@ class UserModel {
     required this.displayName,
     required this.createdAt,
     required this.isEmailVerified,
+    required this.emailNotifications,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class UserModel {
       'displayName': displayName,
       'createdAt': Timestamp.fromDate(createdAt),
       'isEmailVerified': isEmailVerified,
+      'emailNotifications': emailNotifications,
     };
   }
 
@@ -32,6 +35,7 @@ class UserModel {
       displayName: map['displayName'] ?? '',
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       isEmailVerified: map['isEmailVerified'] ?? false,
+      emailNotifications: map['emailNotifications'] ?? true,
     );
   }
 
@@ -46,6 +50,7 @@ class UserModel {
     String? displayName,
     DateTime? createdAt,
     bool? isEmailVerified,
+    bool? emailNotifications,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -53,6 +58,7 @@ class UserModel {
       displayName: displayName ?? this.displayName,
       createdAt: createdAt ?? this.createdAt,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+      emailNotifications: emailNotifications ?? this.emailNotifications,
     );
   }
 
@@ -63,6 +69,7 @@ class UserModel {
       displayName: firebaseUser.displayName ?? '',
       createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
       isEmailVerified: firebaseUser.emailVerified,
+      emailNotifications: true, 
     );
   }
 }
