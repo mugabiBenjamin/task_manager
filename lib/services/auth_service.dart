@@ -146,6 +146,7 @@ class AuthService {
           displayName: displayName,
           createdAt: DateTime.now(),
           isEmailVerified: user.emailVerified,
+          emailNotifications: true, 
         );
 
         await userDoc.set(userModel.toMap());
