@@ -9,6 +9,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -61,6 +62,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppConstants.editTaskTitle),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           if (_task != null)
             IconButton(
@@ -81,6 +88,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
