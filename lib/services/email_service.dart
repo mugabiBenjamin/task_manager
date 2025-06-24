@@ -1,13 +1,14 @@
 import 'package:emailjs/emailjs.dart';
 // ignore: library_prefixes
 import 'package:emailjs/emailjs.dart' as EmailJS;
+import 'package:flutter/foundation.dart';
 import '../models/task_model.dart';
 import '../models/user_model.dart';
 
 class EmailService {
-  static const String _serviceId = 'YOUR_EMAILJS_SERVICE_ID';
-  static const String _templateId = 'YOUR_EMAILJS_TEMPLATE_ID';
-  static const String _publicKey = 'YOUR_EMAILJS_PUBLIC_KEY';
+  static const String _serviceId = 'service_gevpfid';
+  static const String _templateId = 'template_77yrls5';
+  static const String _publicKey = 'NNbZWvJBb1rruB8eY';
 
   // Send task assignment notification
   static Future<bool> sendTaskAssignmentNotification({
@@ -51,7 +52,9 @@ class EmailService {
       }
       return true;
     } catch (e) {
-      print('Email notification failed: $e');
+      if (kDebugMode) {
+        print('Email notification failed: $e');
+      }
       return false; // Don't block task assignment on email failure
     }
   }
