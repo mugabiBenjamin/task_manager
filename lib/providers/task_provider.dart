@@ -3,7 +3,9 @@ import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../core/enums/task_status.dart';
 import '../core/enums/task_priority.dart';
+import '../services/user_service.dart';
 import 'auth_provider.dart';
+import '../services/email_service.dart';
 
 class TaskProvider extends ChangeNotifier {
   final TaskService _taskService = TaskService();
@@ -219,17 +221,46 @@ class TaskProvider extends ChangeNotifier {
         return false;
       }
 
-      // Use createdBy instead of creatorId
       if (task.createdBy != _authProvider!.user!.uid) {
         _setError('Only the task creator can assign users');
         return false;
       }
 
+      // Assign task first
       await _taskService.assignTask(taskId, userIds);
+
+      // Send email notifications (don't block on failure)
+      _sendAssignmentNotifications(task, userIds);
+
       return true;
     } catch (e) {
       _setError('Failed to assign task: $e');
       return false;
+    }
+  }
+
+  Future<void> _sendAssignmentNotifications(
+    TaskModel task,
+    List<String> userIds,
+  ) async {
+    try {
+      // Get assignee details
+      final userService = UserService();
+      final assignees = await userService.getUsersByIds(userIds);
+
+      // Get creator details
+      final creator = await userService.getUserById(task.createdBy);
+      if (creator == null) return;
+
+      // Send notifications
+      await EmailService.sendTaskAssignmentNotification(
+        task: task,
+        assignees: assignees,
+        creator: creator,
+      );
+    } catch (e) {
+      print('Failed to send email notifications: $e');
+      // Don't throw error - email failure shouldn't affect task assignment
     }
   }
 
