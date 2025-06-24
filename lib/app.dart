@@ -8,8 +8,12 @@ import 'providers/user_provider.dart';
 import 'routes/app_routes.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
+import 'screens/help/help_screen.dart';
 import 'screens/profile/user_profile_screen.dart';
+import 'screens/settings/settings_screen.dart';
 import 'screens/tasks/create_task_screen.dart';
+import 'screens/tasks/labels_screen.dart';
+import 'screens/tasks/starred_tasks_screen.dart';
 import 'screens/tasks/task_assignment_screen.dart';
 import 'screens/tasks/task_details_screen.dart';
 import 'screens/tasks/task_list_screen.dart';
@@ -63,6 +67,11 @@ class App extends StatelessWidget {
             );
           },
           AppRoutes.userProfile: (context) => const UserProfileScreen(),
+          // Add these missing routes:
+          AppRoutes.help: (context) => const HelpScreen(),
+          AppRoutes.settings: (context) => const SettingsScreen(),
+          AppRoutes.starredTasks: (context) => const StarredTasksScreen(),
+          AppRoutes.labels: (context) => const LabelsScreen(),
         },
       ),
     );
