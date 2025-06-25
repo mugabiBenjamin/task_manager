@@ -85,19 +85,70 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ),
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(AppConstants.defaultPadding),
-            itemCount: taskProvider.tasks.length,
-            itemBuilder: (context, index) {
-              final task = taskProvider.tasks[index];
-              return TaskCard(
-                task: task,
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.taskDetails,
-                    arguments: task.id,
-                  );
+          return Consumer<TaskProvider>(
+            builder: (context, taskProvider, child) {
+              // Get grouped tasks
+              final groupedTasks = taskProvider.getGroupedTasks();
+              final sections = groupedTasks.keys.toList();
+
+              // Calculate total items (sections + tasks)
+              int totalItems = 0;
+              for (final tasks in groupedTasks.values) {
+                totalItems += 1 + tasks.length; // 1 for header + tasks count
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                itemCount: totalItems,
+                itemBuilder: (context, index) {
+                  int currentIndex = 0;
+
+                  // Find which section this index belongs to
+                  for (final sectionKey in sections) {
+                    final sectionTasks = groupedTasks[sectionKey]!;
+                    final sectionSize =
+                        1 + sectionTasks.length; // header + tasks
+
+                    if (index < currentIndex + sectionSize) {
+                      final localIndex = index - currentIndex;
+
+                      // Section header
+                      if (localIndex == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppConstants.defaultPadding,
+                            bottom: AppConstants.smallPadding,
+                          ),
+                          child: Text(
+                            sectionKey,
+                            style: AppConstants.headlineStyle.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppConstants.textSecondaryColor,
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Task item
+                      final task = sectionTasks[localIndex - 1];
+                      return TaskCard(
+                        task: task,
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.taskDetails,
+                            arguments: task.id,
+                          );
+                        },
+                      );
+                    }
+
+                    currentIndex += sectionSize;
+                  }
+
+                  // Should never reach here
+                  return const SizedBox.shrink();
                 },
               );
             },
