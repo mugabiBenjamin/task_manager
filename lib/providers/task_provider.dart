@@ -259,7 +259,9 @@ class TaskProvider extends ChangeNotifier {
         creator: creator,
       );
     } catch (e) {
-      print('Failed to send email notifications: $e');
+      if (kDebugMode) {
+        print('Failed to send email notifications: $e');
+      }
       // Don't throw error - email failure shouldn't affect task assignment
     }
   }
