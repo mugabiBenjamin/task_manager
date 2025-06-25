@@ -21,4 +21,5 @@ class FirebaseConstants {
   static const String emailField = 'email';
   static const String displayNameField = 'displayName';
   static const String isEmailVerifiedField = 'isEmailVerified';
+  static const String isStarredField = 'isStarred';
 }

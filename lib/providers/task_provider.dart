@@ -446,6 +446,61 @@ class TaskProvider extends ChangeNotifier {
         .toList();
   }
 
+  List<TaskModel> getStarredTasks() {
+    return _tasks.where((task) => task.isStarred).toList();
+  }
+
+  Future<bool> toggleTaskStarred(String taskId) async {
+    if (_authProvider?.user?.uid == null) {
+      _setError('User not authenticated');
+      return false;
+    }
+
+    _clearError();
+
+    try {
+      final task = await _taskService.getTaskById(taskId);
+      if (task == null) {
+        _setError('Task not found');
+        return false;
+      }
+
+      final currentUserId = _authProvider!.user!.uid;
+      if (task.createdBy != currentUserId &&
+          !task.assignedTo.contains(currentUserId)) {
+        _setError('You don\'t have permission to star this task');
+        return false;
+      }
+
+      await _taskService.toggleTaskStarred(taskId, !task.isStarred);
+      return true;
+    } catch (e) {
+      _setError('Failed to toggle starred status: $e');
+      return false;
+    }
+  }
+
+  Map<String, List<TaskModel>> getGroupedStarredTasks() {
+    final Map<String, List<TaskModel>> groupedTasks = {};
+    final starredTasks = getStarredTasks();
+
+    // Sort starred tasks by created date (newest first)
+    starredTasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Group tasks by date sections
+    for (final task in starredTasks) {
+      final sectionHeader = DateHelper.getSectionHeader(task.createdAt);
+
+      if (groupedTasks.containsKey(sectionHeader)) {
+        groupedTasks[sectionHeader]!.add(task);
+      } else {
+        groupedTasks[sectionHeader] = [task];
+      }
+    }
+
+    return groupedTasks;
+  }
+
   // Private helper methods
   void _setLoading(bool loading) {
     _isLoading = loading;

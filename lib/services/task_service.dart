@@ -192,4 +192,12 @@ class TaskService {
       throw Exception('Failed to update task status: $e');
     }
   }
+
+  Future<void> toggleTaskStarred(String taskId, bool isStarred) async {
+    try {
+      await updateTask(taskId, {FirebaseConstants.isStarredField: isStarred});
+    } catch (e) {
+      throw Exception('Failed to toggle task starred status: $e');
+    }
+  }
 }
