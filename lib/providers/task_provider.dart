@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/utils/date_helper.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../core/enums/task_status.dart';
@@ -404,6 +405,27 @@ class TaskProvider extends ChangeNotifier {
               task.assignedTo.contains(currentUserId),
         )
         .toList();
+  }
+
+  Map<String, List<TaskModel>> getGroupedTasks() {
+    final Map<String, List<TaskModel>> groupedTasks = {};
+
+    // Sort filtered tasks by created date (newest first)
+    final sortedTasks = List<TaskModel>.from(_filteredTasks);
+    sortedTasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Group tasks by date sections
+    for (final task in sortedTasks) {
+      final sectionHeader = DateHelper.getSectionHeader(task.createdAt);
+
+      if (groupedTasks.containsKey(sectionHeader)) {
+        groupedTasks[sectionHeader]!.add(task);
+      } else {
+        groupedTasks[sectionHeader] = [task];
+      }
+    }
+
+    return groupedTasks;
   }
 
   // Get tasks created by user - CORRECTED
