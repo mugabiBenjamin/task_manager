@@ -13,6 +13,7 @@ class TaskModel {
   final String createdBy;
   final List<String> assignedTo;
   final List<String> labels;
+  final bool isStarred;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,6 +28,7 @@ class TaskModel {
     required this.createdBy,
     required this.assignedTo,
     required this.labels,
+    this.isStarred = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -42,6 +44,7 @@ class TaskModel {
       'createdBy': createdBy,
       'assignedTo': assignedTo,
       'labels': labels,
+      'isStarred': isStarred,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -63,6 +66,7 @@ class TaskModel {
       createdBy: map['createdBy'] ?? '',
       assignedTo: List<String>.from(map['assignedTo'] ?? []),
       labels: List<String>.from(map['labels'] ?? []),
+      isStarred: map['isStarred'] ?? false,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       updatedAt: (map['updatedAt'] as Timestamp).toDate(),
     );
@@ -84,6 +88,7 @@ class TaskModel {
     String? createdBy,
     List<String>? assignedTo,
     List<String>? labels,
+    bool? isStarred,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -98,6 +103,7 @@ class TaskModel {
       createdBy: createdBy ?? this.createdBy,
       assignedTo: assignedTo ?? this.assignedTo,
       labels: labels ?? this.labels,
+      isStarred: isStarred ?? this.isStarred,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
