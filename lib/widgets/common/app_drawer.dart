@@ -78,6 +78,14 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.star, color: AppConstants.primaryColor),
+              title: const Text('Starred'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.starredTasks);
+              },
+            ),
+            ListTile(
               leading: const Icon(
                 Icons.label,
                 color: AppConstants.primaryColor,
@@ -86,14 +94,6 @@ class AppDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.labels);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.star, color: AppConstants.primaryColor),
-              title: const Text('Starred'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, AppRoutes.starredTasks);
               },
             ),
             ListTile(
