@@ -54,4 +54,47 @@ class DateHelper {
   static DateTime getDefaultDueDate() {
     return DateTime.now().add(const Duration(days: 1));
   }
+
+  // Get section header for a given date
+  static String getSectionHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDate = DateTime(date.year, date.month, date.day);
+
+    final difference = today.difference(targetDate).inDays;
+
+    // Today
+    if (difference == 0) {
+      return 'Today';
+    }
+
+    // Yesterday
+    if (difference == 1) {
+      return 'Yesterday';
+    }
+
+    // This week (2-6 days ago)
+    if (difference <= 6) {
+      return DateFormat('EEEE').format(date); // Monday, Tuesday, etc.
+    }
+
+    // Same year but different week/month
+    if (date.year == now.year) {
+      return DateFormat('EEEE d MMMM').format(date); // Thursday 14 March
+    }
+
+    // Different year
+    if (date.year == now.year - 1) {
+      // Previous year - show month and year
+      return DateFormat('MMMM yyyy').format(date); // March 2024
+    }
+
+    // Older than previous year - just show year
+    return DateFormat('yyyy').format(date); // 2023
+  }
+
+  // Check if two dates belong to same section
+  static bool isSameSection(DateTime date1, DateTime date2) {
+    return getSectionHeader(date1) == getSectionHeader(date2);
+  }
 }
