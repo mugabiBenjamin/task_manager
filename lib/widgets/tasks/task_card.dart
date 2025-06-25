@@ -33,60 +33,77 @@ class TaskCard extends StatelessWidget {
           width: 1,
         ),
       ),
-      child: Stack(
-        children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-            child: Padding(
-              padding: const EdgeInsets.all(AppConstants.defaultPadding),
-              child: Column(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 40),
-                          child: Text(
-                            task.title,
-                            style: AppConstants.headlineStyle.copyWith(
-                              fontSize: 18,
-                              color: isOverdue
-                                  ? AppConstants.errorColor
-                                  : isCompleted
-                                  ? Colors.grey
-                                  : AppConstants.textPrimaryColor,
-                              decoration: isCompleted
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          task.title,
+                          style: AppConstants.headlineStyle.copyWith(
+                            fontSize: 18,
+                            color: isOverdue
+                                ? AppConstants.errorColor
+                                : isCompleted
+                                    ? Colors.grey
+                                    : AppConstants.textPrimaryColor,
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.smallPadding,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(
-                            task.status,
-                          ).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.borderRadius / 2,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.smallPadding,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(
+                                task.status,
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.borderRadius / 2,
+                              ),
+                            ),
+                            child: Text(
+                              task.status.displayName,
+                              style: AppConstants.bodyStyle.copyWith(
+                                color: _getStatusColor(task.status),
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          task.status.displayName,
-                          style: AppConstants.bodyStyle.copyWith(
-                            color: _getStatusColor(task.status),
-                            fontSize: 12,
+                          const SizedBox(width: 8),
+                          Consumer<TaskProvider>(
+                            builder: (context, taskProvider, child) {
+                              return GestureDetector(
+                                onTap: () async {
+                                  await taskProvider.toggleTaskStarred(task.id);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(
+                                    task.isStarred ? Icons.star : Icons.star_border,
+                                    color: task.isStarred ? Colors.amber : Colors.grey,
+                                    size: 20,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -145,8 +162,8 @@ class TaskCard extends StatelessWidget {
                             color: isOverdue
                                 ? AppConstants.errorColor
                                 : isCompleted
-                                ? Colors.grey
-                                : AppConstants.textSecondaryColor,
+                                    ? Colors.grey
+                                    : AppConstants.textSecondaryColor,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -157,8 +174,8 @@ class TaskCard extends StatelessWidget {
                               color: isOverdue
                                   ? AppConstants.errorColor
                                   : isCompleted
-                                  ? Colors.grey
-                                  : AppConstants.textSecondaryColor,
+                                      ? Colors.grey
+                                      : AppConstants.textSecondaryColor,
                               fontSize: 12,
                               decoration: isCompleted
                                   ? TextDecoration.lineThrough
@@ -205,7 +222,9 @@ class TaskCard extends StatelessWidget {
                                   int.parse(
                                     label.color.replaceFirst('#', '0xFF'),
                                   ),
-                                ).withValues(alpha: isCompleted ? 0.1 : 0.2),
+                                ).withValues(
+                                  alpha: isCompleted ? 0.1 : 0.2,
+                                ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AppConstants.smallPadding,
                                 ),
@@ -219,29 +238,6 @@ class TaskCard extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Consumer<TaskProvider>(
-              builder: (context, taskProvider, child) {
-                return GestureDetector(
-                  onTap: () async {
-                    await taskProvider.toggleTaskStarred(task.id);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      task.isStarred ? Icons.star : Icons.star_border,
-                      color: task.isStarred ? Colors.amber : Colors.grey,
-                      size: 20,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 
