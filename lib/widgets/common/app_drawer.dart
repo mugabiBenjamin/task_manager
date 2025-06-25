@@ -59,6 +59,14 @@ class AppDrawer extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.list, color: AppConstants.primaryColor),
+              title: const Text('Your Tasks'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.taskList);
+              },
+            ),
+            ListTile(
               leading: const Icon(
                 Icons.person,
                 color: AppConstants.primaryColor,
