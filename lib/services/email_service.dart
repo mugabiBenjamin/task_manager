@@ -43,7 +43,7 @@ class EmailService {
           },
           const Options(
             publicKey: _publicKey,
-            limitRate: const LimitRate(
+            limitRate: LimitRate(
               id: 'app_email_limit',
               throttle: 10000, // 10 seconds between emails
             ),
