@@ -4,8 +4,6 @@ import '../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
 
-const TextStyle drawerTextStyle = TextStyle(fontWeight: FontWeight.bold);
-
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
@@ -35,9 +33,8 @@ class AppDrawer extends StatelessWidget {
                 return UserAccountsDrawerHeader(
                   accountName: Text(
                     displayName.isNotEmpty ? displayName : 'User',
-                    style: drawerTextStyle,
                   ),
-                  accountEmail: Text(email, style: drawerTextStyle),
+                  accountEmail: Text(email),
                   currentAccountPicture: CircleAvatar(
                     child: Text(
                       displayName.isNotEmpty
@@ -54,48 +51,57 @@ class AppDrawer extends StatelessWidget {
             ),
             // Menu items
             ListTile(
-              leading: const Icon(Icons.add),
-              title: const Text('New Task', style: drawerTextStyle),
+              leading: const Icon(Icons.add, color: AppConstants.primaryColor),
+              title: const Text('New Task'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.createTask);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile', style: drawerTextStyle),
+              leading: const Icon(
+                Icons.person,
+                color: AppConstants.primaryColor,
+              ),
+              title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.userProfile);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.label),
-              title: const Text('Labels', style: drawerTextStyle),
+              leading: const Icon(
+                Icons.label,
+                color: AppConstants.primaryColor,
+              ),
+              title: const Text('Labels'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.labels);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.star),
-              title: const Text('Starred', style: drawerTextStyle),
+              leading: const Icon(Icons.star, color: AppConstants.primaryColor),
+              title: const Text('Starred'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.starredTasks);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings', style: drawerTextStyle),
+              leading: const Icon(
+                Icons.settings,
+                color: AppConstants.primaryColor,
+              ),
+              title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.settings);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.help),
-              title: const Text('Help', style: drawerTextStyle),
+              leading: const Icon(Icons.help, color: AppConstants.primaryColor),
+              title: const Text('Help'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.help);
