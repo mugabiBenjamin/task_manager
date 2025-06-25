@@ -9,7 +9,6 @@ import '../screens/profile/user_profile_screen.dart';
 import '../screens/tasks/starred_tasks_screen.dart';
 import '../screens/tasks/labels_screen.dart';
 import '../screens/settings/settings_screen.dart';
-import '../screens/help/help_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -46,7 +45,6 @@ class AppRoutes {
       starredTasks: (context) => const StarredTasksScreen(),
       labels: (context) => const LabelsScreen(),
       settings: (context) => const SettingsScreen(),
-      help: (context) => const HelpScreen(),
     };
   }
 }

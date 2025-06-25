@@ -107,14 +107,6 @@ class AppDrawer extends StatelessWidget {
                 Navigator.pushNamed(context, AppRoutes.settings);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.help, color: AppConstants.primaryColor),
-              title: const Text('Help'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, AppRoutes.help);
-              },
-            ),
             const Spacer(),
             // Logout button at bottom
             Padding(
