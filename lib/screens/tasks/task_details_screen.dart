@@ -9,6 +9,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -61,6 +62,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppConstants.editTaskTitle),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           if (_task != null)
             IconButton(
@@ -81,6 +88,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -153,6 +161,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   void _updateTask(BuildContext context, TaskModel task) async {
     final taskProvider = context.read<TaskProvider>();
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final updates = {
       'title': task.title,
@@ -174,8 +184,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
     final success = await taskProvider.updateTask(widget.taskId, updates);
     if (success && mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      navigator.pop();
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text(AppConstants.successMessage)),
       );
     }
@@ -195,11 +205,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           TextButton(
             onPressed: () async {
               final taskProvider = context.read<TaskProvider>();
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+
               final success = await taskProvider.deleteTask(widget.taskId);
               if (success && mounted) {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close details screen
-                ScaffoldMessenger.of(context).showSnackBar(
+                navigator.pop(); // Close dialog
+                navigator.pop(); // Close details screen
+                scaffoldMessenger.showSnackBar(
                   const SnackBar(content: Text('Task deleted successfully')),
                 );
               }

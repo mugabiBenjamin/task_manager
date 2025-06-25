@@ -6,6 +6,10 @@ import '../screens/tasks/create_task_screen.dart';
 import '../screens/tasks/task_details_screen.dart';
 import '../screens/tasks/task_assignment_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
+import '../screens/tasks/starred_tasks_screen.dart';
+import '../screens/tasks/labels_screen.dart';
+import '../screens/settings/settings_screen.dart';
+import '../screens/help/help_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -15,6 +19,10 @@ class AppRoutes {
   static const String taskDetails = '/task_details';
   static const String taskAssignment = '/task_assignment';
   static const String userProfile = '/user_profile';
+  static const String starredTasks = '/starred_tasks';
+  static const String labels = '/labels';
+  static const String settings = '/settings';
+  static const String help = '/help';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -35,6 +43,10 @@ class AppRoutes {
         );
       },
       userProfile: (context) => const UserProfileScreen(),
+      starredTasks: (context) => const StarredTasksScreen(),
+      labels: (context) => const LabelsScreen(),
+      settings: (context) => const SettingsScreen(),
+      help: (context) => const HelpScreen(),
     };
   }
 }

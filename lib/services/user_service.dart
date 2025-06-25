@@ -52,6 +52,17 @@ class UserService {
     }
   }
 
+  Future<void> updateEmailNotificationPreference(
+    String userId,
+    bool enabled,
+  ) async {
+    try {
+      await updateUser(userId, {'emailNotifications': enabled});
+    } catch (e) {
+      throw Exception('Failed to update email preferences: $e');
+    }
+  }
+
   // Stream user data
   Stream<UserModel?> getUserStream(String userId) {
     try {

@@ -38,7 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.task_alt, size: 80, color: AppConstants.primaryColor),
+                const Icon(
+                  Icons.task_alt,
+                  size: 80,
+                  color: AppConstants.primaryColor,
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Task Manager',
@@ -347,13 +351,18 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () async {
               if (emailController.text.isNotEmpty) {
                 final authProvider = context.read<AuthProvider>();
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
                 final success = await authProvider.resetPassword(
                   emailController.text.trim(),
                 );
 
-                Navigator.pop(context);
+                navigator.pop();
 
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!mounted) return;
+
+                scaffoldMessenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       success
