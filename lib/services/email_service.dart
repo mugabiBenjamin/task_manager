@@ -14,7 +14,7 @@ class EmailService {
   // Send task assignment notification
   static Future<bool> sendTaskAssignmentNotification({
     required TaskModel task,
-    required List<UserModel> assignees,
+    required List<UserModel> assignees, // These should be registered users only
     required UserModel creator,
   }) async {
     try {
@@ -39,6 +39,8 @@ class EmailService {
                 ? creator.displayName
                 : creator.email,
             'creator_email': creator.email,
+            'task_link':
+                'https://yourapp.com/tasks/${task.id}', // Add task link
             'unsubscribe_link':
                 'https://yourapp.com/unsubscribe/${assignee.id}',
           },
@@ -57,6 +59,42 @@ class EmailService {
         print('Email notification failed: $e');
       }
       return false; // Don't block task assignment on email failure
+    }
+  }
+
+  static Future<bool> sendInvitationEmail({
+    required String recipientEmail,
+    required String inviterName,
+    required String inviterEmail,
+    required String invitationToken,
+    required String appUrl, // Your app's URL for the invitation link
+  }) async {
+    try {
+      await EmailJS.send(
+        _serviceId,
+        _invitationTemplateId,
+        {
+          'to_email': recipientEmail,
+          'to_name': recipientEmail.split('@')[0], // Use email prefix as name
+          'inviter_name': inviterName,
+          'inviter_email': inviterEmail,
+          'invitation_link': '$appUrl/accept-invitation?token=$invitationToken',
+          'app_name': 'task_manager', // Replace with your app name
+        },
+        const Options(
+          publicKey: _publicKey,
+          limitRate: LimitRate(
+            id: 'invitation_email_limit',
+            throttle: 15000, // 15 seconds between invitation emails
+          ),
+        ),
+      );
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Invitation email failed: $e');
+      }
+      return false;
     }
   }
 }
