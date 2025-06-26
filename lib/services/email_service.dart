@@ -9,6 +9,7 @@ class EmailService {
   static const String _serviceId = 'service_gevpfid';
   static const String _templateId = 'template_77yrls5';
   static const String _publicKey = 'NNbZWvJBb1rruB8eY';
+  static const String _invitationTemplateId = 'template_5p71bhu';
 
   // Send task assignment notification
   static Future<bool> sendTaskAssignmentNotification({
