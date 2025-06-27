@@ -4,9 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
+import '../services/invitation_service.dart';
+import '../services/user_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
+  late final UserService _userService;
+  late final InvitationService _invitationService;
   User? _user;
   UserModel? _userModel;
   bool _isLoading = false;
@@ -25,7 +29,17 @@ class AuthProvider extends ChangeNotifier {
   bool _hasLoadedUserData = false;
 
   AuthProvider() {
+    _initializeServices();
     _initializeAuthListener();
+  }
+
+  void _initializeServices() {
+    _userService = UserService();
+    _invitationService = InvitationService();
+
+    // Set up the circular dependencies after creation
+    _userService.setInvitationService(_invitationService);
+    _invitationService.setUserService(_userService);
   }
 
   void _initializeAuthListener() {
@@ -323,8 +337,12 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> verifyInvitationToken(String token, String displayName) async {
     try {
-      await _authService.verifyInvitationToken(token, displayName);
-      return true;
+      // CHANGED: Use the initialized _invitationService instead of _authService
+      final success = await _invitationService.acceptInvitation(
+        token,
+        displayName,
+      );
+      return success;
     } catch (e) {
       return false;
     }
