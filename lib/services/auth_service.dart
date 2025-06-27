@@ -1,15 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
 import '../core/constants/firebase_constants.dart';
+import '../models/user_model.dart';
 import 'user_service.dart';
+import 'invitation_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final UserService _userService = UserService();
+  final InvitationService _invitationService = InvitationService();
 
   User? get currentUser => _auth.currentUser;
 
@@ -20,6 +22,7 @@ class AuthService {
     required String email,
     required String password,
     required String displayName,
+    String? invitationToken,
   }) async {
     try {
       final UserCredential result = await _auth.createUserWithEmailAndPassword(
@@ -33,6 +36,11 @@ class AuthService {
       // Create user document in Firestore
       if (result.user != null) {
         await _createUserDocument(result.user!, displayName);
+      }
+
+      // Verify invitation token if provided
+      if (invitationToken != null) {
+        await verifyInvitationToken(invitationToken, displayName);
       }
 
       return result;
@@ -57,7 +65,7 @@ class AuthService {
   }
 
   // Sign in with Google
-  Future<UserCredential?> signInWithGoogle() async {
+  Future<UserCredential?> signInWithGoogle({String? invitationToken}) async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
@@ -76,6 +84,12 @@ class AuthService {
       // Create user document if new user
       if (result.user != null) {
         await _createUserDocument(result.user!, result.user!.displayName ?? '');
+        if (invitationToken != null) {
+          await verifyInvitationToken(
+            invitationToken,
+            result.user!.displayName ?? '',
+          );
+        }
       }
 
       return result;
@@ -146,7 +160,7 @@ class AuthService {
           displayName: displayName,
           createdAt: DateTime.now(),
           isEmailVerified: user.emailVerified,
-          emailNotifications: true, 
+          emailNotifications: true,
         );
 
         await userDoc.set(userModel.toMap());
@@ -156,18 +170,28 @@ class AuthService {
     }
   }
 
+  // Verify invitation token
+  Future<void> verifyInvitationToken(String token, String displayName) async {
+    try {
+      await _invitationService.acceptInvitation(token, displayName);
+    } catch (e) {
+      throw Exception('Failed to verify invitation token: $e');
+    }
+  }
+
+  // Delete account
   Future<bool> deleteAccount() async {
     try {
       if (_auth.currentUser == null) return false;
 
       final userId = _auth.currentUser!.uid;
-      
+
       // Delete user data using UserService
       await _userService.deleteUser(userId);
-      
+
       // Delete Firebase Auth account
       await _auth.currentUser!.delete();
-      
+
       return true;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
