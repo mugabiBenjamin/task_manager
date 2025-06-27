@@ -1,9 +1,7 @@
 import 'package:emailjs/emailjs.dart';
-// ignore: library_prefixes
-import 'package:emailjs/emailjs.dart' as EmailJS;
 import 'package:flutter/foundation.dart';
 import '../models/task_model.dart';
-import '../models/user_model.dart';
+import '../core/utils/date_helper.dart';
 
 class EmailService {
   static const String _serviceId = 'service_gevpfid';
@@ -14,35 +12,38 @@ class EmailService {
   // Send task assignment notification
   static Future<bool> sendTaskAssignmentNotification({
     required TaskModel task,
-    required List<UserModel> assignees, // These should be registered users only
-    required UserModel creator,
+    required List<Map<String, dynamic>>
+    assignees, // Supports both registered and invited users
+    required Map<String, dynamic> creator,
   }) async {
     try {
       for (final assignee in assignees) {
-        // Skip if user opted out of email notifications
-        if (assignee.emailNotifications == false) continue;
+        // Skip if registered user opted out of email notifications
+        if (assignee['isRegistered'] == true &&
+            assignee['emailNotifications'] == false) {
+          continue;
+        }
 
-        await EmailJS.send(
+        await send(
           _serviceId,
           _templateId,
           {
-            'to_email': assignee.email,
-            'to_name': assignee.displayName.isNotEmpty
-                ? assignee.displayName
-                : assignee.email,
+            'to_email': assignee['email'],
+            'to_name':
+                assignee['displayName'] ?? assignee['email'].split('@')[0],
             'task_title': task.title,
             'task_description': task.description,
             'task_priority': task.priority.displayName,
-            'task_due_date':
-                task.dueDate?.toString().split(' ')[0] ?? 'Not set',
-            'creator_name': creator.displayName.isNotEmpty
-                ? creator.displayName
-                : creator.email,
-            'creator_email': creator.email,
-            'task_link':
-                'https://yourapp.com/tasks/${task.id}', // Add task link
-            'unsubscribe_link':
-                'https://yourapp.com/unsubscribe/${assignee.id}',
+            'task_due_date': task.dueDate != null
+                ? DateHelper.formatDate(task.dueDate!)
+                : 'Not set',
+            'creator_name':
+                creator['displayName'] ?? creator['email'].split('@')[0],
+            'creator_email': creator['email'],
+            'task_link': 'https://task-manager-1763e.web.app/tasks/${task.id}',
+            'unsubscribe_link': assignee['isRegistered']
+                ? 'https://task-manager-1763e.web.app/unsubscribe/${assignee['id']}'
+                : null,
           },
           const Options(
             publicKey: _publicKey,
@@ -62,24 +63,25 @@ class EmailService {
     }
   }
 
+  // Send invitation email
   static Future<bool> sendInvitationEmail({
     required String recipientEmail,
     required String inviterName,
     required String inviterEmail,
     required String invitationToken,
-    required String appUrl, // Your app's URL for the invitation link
+    required String verificationLink,
   }) async {
     try {
-      await EmailJS.send(
+      await send(
         _serviceId,
         _invitationTemplateId,
         {
           'to_email': recipientEmail,
-          'to_name': recipientEmail.split('@')[0], // Use email prefix as name
+          'to_name': recipientEmail.split('@')[0],
           'inviter_name': inviterName,
           'inviter_email': inviterEmail,
-          'invitation_link': '$appUrl/accept-invitation?token=$invitationToken',
-          'app_name': 'task_manager', // Replace with your app name
+          'invitation_link': verificationLink,
+          'app_name': 'Task Manager',
         },
         const Options(
           publicKey: _publicKey,
