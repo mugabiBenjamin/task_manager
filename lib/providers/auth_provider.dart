@@ -189,6 +189,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String displayName,
+    String? invitationToken,
   }) async {
     _setLoading(true);
     _clearError();
@@ -198,6 +199,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         displayName: displayName,
+        invitationToken: invitationToken,
       );
       _resetFailedAttempts();
       _setLoading(false);
@@ -237,12 +239,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({String? invitationToken}) async {
     _setLoading(true);
     _clearError();
 
     try {
-      final result = await _authService.signInWithGoogle();
+      final result = await _authService.signInWithGoogle(
+        invitationToken: invitationToken,
+      );
       _resetFailedAttempts();
       _setLoading(false);
       return result != null;
@@ -313,6 +317,15 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _setError(_parseFirebaseError(e));
+      return false;
+    }
+  }
+
+  Future<bool> verifyInvitationToken(String token, String displayName) async {
+    try {
+      await _authService.verifyInvitationToken(token, displayName);
+      return true;
+    } catch (e) {
       return false;
     }
   }
