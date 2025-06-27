@@ -60,23 +60,25 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.inviteUser)
-                .then((result) {
-                  if (result == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Invitation sent successfully'),
-                      ),
-                    );
-                  } else if (result == false && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to send invitation'),
-                        backgroundColor: AppConstants.errorColor,
-                      ),
-                    );
-                  }
-                }),
+            onPressed: () {
+              final currentContext = context;
+              Navigator.pushNamed(context, AppRoutes.inviteUser).then((result) {
+                if (result == true && mounted) {
+                  ScaffoldMessenger.of(currentContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invitation sent successfully'),
+                    ),
+                  );
+                } else if (result == false && mounted) {
+                  ScaffoldMessenger.of(currentContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to send invitation'),
+                      backgroundColor: AppConstants.errorColor,
+                    ),
+                  );
+                }
+              });
+            },
           ),
         ],
       ),
