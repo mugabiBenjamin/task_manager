@@ -118,9 +118,8 @@ class TaskProvider extends ChangeNotifier {
       }
 
       final currentUserId = _authProvider!.user!.uid;
-      if (task.createdBy != currentUserId &&
-          !task.assignedTo.contains(currentUserId)) {
-        _setError('You don\'t have permission to update this task');
+      if (task.createdBy != currentUserId) {
+        _setError('Only the task creator can update task details');
         _setLoading(false);
         return false;
       }
@@ -189,7 +188,7 @@ class TaskProvider extends ChangeNotifier {
       final currentUserId = _authProvider!.user!.uid;
       if (task.createdBy != currentUserId &&
           !task.assignedTo.contains(currentUserId)) {
-        _setError('You don\'t have permission to update this task');
+        _setError('You don\'t have permission to update this task status');
         return false;
       }
 
@@ -222,7 +221,6 @@ class TaskProvider extends ChangeNotifier {
         return false;
       }
 
-      // Validate userIds
       final availableUsers = await _userService.getAvailableUsersForTask('');
       final validUserIds = availableUsers.map((user) => user['id']).toList();
       final invalidUsers = userIds
