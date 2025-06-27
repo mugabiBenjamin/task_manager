@@ -5,7 +5,8 @@ import '../../providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+  final String? invitationToken;
+  const SignupScreen({super.key, this.invitationToken});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -23,6 +24,17 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _passwordHasError = false;
   bool _confirmPasswordHasError = false;
   bool _displayNameHasError = false;
+  // ignore: unused_field
+  bool _isTokenVerified = false;
+  bool _isTokenInvalid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.invitationToken != null) {
+      _verifyInvitationToken();
+    }
+  }
 
   @override
   void dispose() {
@@ -31,6 +43,34 @@ class _SignupScreenState extends State<SignupScreen> {
     _confirmPasswordController.dispose();
     _displayNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _verifyInvitationToken() async {
+    final authProvider = context.read<AuthProvider>();
+    final isValid = await authProvider.verifyInvitationToken(
+      widget.invitationToken!,
+      _displayNameController.text.trim(),
+    );
+    if (mounted) {
+      setState(() {
+        _isTokenVerified = isValid;
+        _isTokenInvalid = !isValid;
+      });
+      if (isValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invitation token verified successfully'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid or expired invitation token'),
+            backgroundColor: AppConstants.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -106,21 +146,27 @@ class _SignupScreenState extends State<SignupScreen> {
                     labelText: 'Email',
                     prefixIcon: Icon(
                       Icons.email,
-                      color: _emailHasError ? Colors.red : null,
+                      color: _emailHasError || _isTokenInvalid
+                          ? Colors.red
+                          : null,
                     ),
                     border: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: _emailHasError ? Colors.red : Colors.grey,
+                        color: _emailHasError || _isTokenInvalid
+                            ? Colors.red
+                            : Colors.grey,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: _emailHasError ? Colors.red : Colors.grey,
+                        color: _emailHasError || _isTokenInvalid
+                            ? Colors.red
+                            : Colors.grey,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: _emailHasError
+                        color: _emailHasError || _isTokenInvalid
                             ? Colors.red
                             : AppConstants.primaryColor,
                       ),
@@ -136,10 +182,13 @@ class _SignupScreenState extends State<SignupScreen> {
                     ).hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
+                    if (_isTokenInvalid) {
+                      return 'Invalid invitation token';
+                    }
                     return null;
                   },
                   onChanged: (value) {
-                    if (_emailHasError) {
+                    if (_emailHasError || _isTokenInvalid) {
                       setState(() {
                         _clearErrorStates();
                       });
@@ -302,7 +351,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     return SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: authProvider.isLoading ? null : _signUp,
+                        onPressed: authProvider.isLoading || _isTokenInvalid
+                            ? null
+                            : _signUp,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.all(16),
                         ),
@@ -319,7 +370,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     return SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: authProvider.isLoading
+                        onPressed: authProvider.isLoading || _isTokenInvalid
                             ? null
                             : _signUpWithGoogle,
                         icon: Image.asset(
@@ -367,6 +418,7 @@ class _SignupScreenState extends State<SignupScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         displayName: _displayNameController.text.trim(),
+        invitationToken: widget.invitationToken,
       );
 
       if (!success && authProvider.errorMessage != null) {
@@ -377,7 +429,9 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _signUpWithGoogle() async {
     final authProvider = context.read<AuthProvider>();
-    await authProvider.signInWithGoogle();
+    await authProvider.signInWithGoogle(
+      invitationToken: widget.invitationToken,
+    );
   }
 
   void _highlightErrorFields(String errorMessage) {
@@ -387,19 +441,21 @@ class _SignupScreenState extends State<SignupScreen> {
       final lowerError = errorMessage.toLowerCase();
 
       if (lowerError.contains('email') ||
-          lowerError.contains('invalid email')) {
+          lowerError.contains('invalid email') ||
+          lowerError.contains('email-already-in-use') ||
+          lowerError.contains('already exists')) {
         _emailHasError = true;
       } else if (lowerError.contains('password') ||
           lowerError.contains('weak password') ||
           lowerError.contains('credential')) {
         _passwordHasError = true;
         _confirmPasswordHasError = true;
-      } else if (lowerError.contains('email-already-in-use') ||
-          lowerError.contains('already exists')) {
-        _emailHasError = true;
       } else if (lowerError.contains('display name') ||
           lowerError.contains('name')) {
         _displayNameHasError = true;
+      } else if (lowerError.contains('invitation') ||
+          lowerError.contains('token')) {
+        _emailHasError = true;
       }
     });
   }
@@ -409,5 +465,6 @@ class _SignupScreenState extends State<SignupScreen> {
     _passwordHasError = false;
     _confirmPasswordHasError = false;
     _displayNameHasError = false;
+    _isTokenInvalid = false;
   }
 }
