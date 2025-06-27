@@ -15,6 +15,8 @@ class UserProvider extends ChangeNotifier {
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  List<Map<String, dynamic>> _availableUsers = [];
+  List<Map<String, dynamic>> get availableUsers => _availableUsers;
 
   // Update auth provider dependency
   void updateAuthProvider(AuthProvider authProvider) {
@@ -88,6 +90,43 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // ADDED: Search available users specifically for task assignment
+  Future<void> searchAvailableUsersForTask(String query) async {
+    if (!_isUserAuthenticated()) return;
+
+    if (query.isEmpty) {
+      _availableUsers = [];
+      notifyListeners();
+      return;
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // Use existing searchUsers functionality
+      final users = await _userService.searchUsers(query);
+
+      // CHANGED: Convert UserModel list to Map format expected by UI
+      _availableUsers = users
+          .map(
+            (user) => {
+              'id': user.id,
+              'email': user.email,
+              'displayName': user.displayName,
+              'isRegistered': true,
+            },
+          )
+          .toList();
+
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to search users: $e');
+      _setLoading(false);
+    }
+  }
+
   // Update user profile
   Future<bool> updateUser(String userId, Map<String, dynamic> updates) async {
     if (!_isUserAuthenticated()) return false;
@@ -152,6 +191,7 @@ class UserProvider extends ChangeNotifier {
 
   void _clearError() {
     _errorMessage = null;
+    _availableUsers = [];
     notifyListeners();
   }
 }
