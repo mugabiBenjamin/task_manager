@@ -32,7 +32,6 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
   void initState() {
     super.initState();
     _selectedAssignees = List.from(widget.currentAssignees);
-    // Load initial assignees
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = context.read<UserProvider>();
       if (_selectedAssignees.isNotEmpty) {
@@ -61,8 +60,23 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.userProfile),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.inviteUser)
+                .then((result) {
+                  if (result == true && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Invitation sent successfully'),
+                      ),
+                    );
+                  } else if (result == false && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to send invitation'),
+                        backgroundColor: AppConstants.errorColor,
+                      ),
+                    );
+                  }
+                }),
           ),
         ],
       ),
@@ -74,13 +88,15 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
           children: [
             CustomTextField(
               controller: _searchController,
-              labelText: 'Search Users by Email',
+              labelText: 'Search Users by Email or Name',
               prefixIcon: Icons.search,
               onChanged: (value) {
                 setState(() {
                   _isSearching = value.isNotEmpty;
                 });
-                context.read<UserProvider>().searchUsers(value.trim());
+                context.read<UserProvider>().searchAvailableUsersForTask(
+                  value.trim(),
+                );
               },
             ),
             const SizedBox(height: AppConstants.defaultPadding),
@@ -103,11 +119,11 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
                       ),
                     );
                   }
-                  final users = userProvider.users;
+                  final users = userProvider.availableUsers;
                   if (users.isEmpty && !_isSearching) {
                     return Center(
                       child: Text(
-                        'No assignees selected',
+                        'No assignees available. Invite users to assign tasks.',
                         style: AppConstants.bodyStyle.copyWith(
                           color: AppConstants.textSecondaryColor,
                         ),
@@ -118,26 +134,33 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
                     itemCount: users.length,
                     itemBuilder: (context, index) {
                       final user = users[index];
-                      final isSelected = _selectedAssignees.contains(user.id);
+                      final isSelected = _selectedAssignees.contains(
+                        user['id'],
+                      );
                       return CheckboxListTile(
-                        title: Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName
-                              : user.email,
-                        ),
+                        title: Text(user['displayName'] ?? user['email']),
                         subtitle: Text(
-                          user.email,
+                          user['email'],
                           style: AppConstants.bodyStyle.copyWith(
                             color: AppConstants.textSecondaryColor,
                           ),
                         ),
+                        secondary: user['isRegistered']
+                            ? const Icon(
+                                Icons.person,
+                                color: AppConstants.primaryColor,
+                              )
+                            : const Icon(
+                                Icons.email,
+                                color: AppConstants.textSecondaryColor,
+                              ),
                         value: isSelected,
                         onChanged: (bool? value) {
                           setState(() {
                             if (value == true) {
-                              _selectedAssignees.add(user.id);
+                              _selectedAssignees.add(user['id']);
                             } else {
-                              _selectedAssignees.remove(user.id);
+                              _selectedAssignees.remove(user['id']);
                             }
                           });
                         },
@@ -182,7 +205,14 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
     if (success && mounted) {
       Navigator.pop(context, _selectedAssignees);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppConstants.successMessage)),
+        const SnackBar(content: Text('Assignees updated successfully')),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update assignees'),
+          backgroundColor: AppConstants.errorColor,
+        ),
       );
     }
   }
