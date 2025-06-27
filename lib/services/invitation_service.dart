@@ -8,7 +8,13 @@ import 'user_service.dart';
 
 class InvitationService {
   final FirestoreService _firestoreService = FirestoreService();
-  final UserService _userService = UserService();
+  UserService? _userService;
+
+  InvitationService({UserService? userService}) : _userService = userService;
+
+  void setUserService(UserService userService) {
+    _userService = userService;
+  }
 
   // Generate random token for invitation
   String _generateToken() {
@@ -31,12 +37,13 @@ class InvitationService {
     required String inviterEmail,
   }) async {
     try {
-      // Check if user already exists
-      final existingUsers = await _userService.searchUsers(email);
-      if (existingUsers.any(
-        (user) => user.email.toLowerCase() == email.toLowerCase(),
-      )) {
-        throw Exception('User with this email already exists');
+      if (_userService != null) {
+        final existingUsers = await _userService!.searchUsers(email);
+        if (existingUsers.any(
+          (user) => user.email.toLowerCase() == email.toLowerCase(),
+        )) {
+          throw Exception('User with this email already exists');
+        }
       }
 
       // Check if invitation already sent
@@ -155,11 +162,19 @@ class InvitationService {
       );
 
       // Create user document if not exists
-      await _userService.getOrCreateUser(
+      await _userService?.getOrCreateUser(
         invitation.email, // Use email as temporary ID
         invitation.email,
         displayName,
       );
+
+      if (_userService != null) {
+        await _userService!.getOrCreateUser(
+          invitation.email,
+          invitation.email,
+          displayName,
+        );
+      }
 
       return true;
     } catch (e) {
@@ -194,8 +209,21 @@ class InvitationService {
     try {
       final List<Map<String, dynamic>> availableUsers = [];
 
+      if (_userService != null) {
+        final registeredUsers = await _userService!.searchUsers(searchQuery);
+        for (final user in registeredUsers) {
+          availableUsers.add({
+            'id': user.id,
+            'email': user.email,
+            'displayName': user.displayName,
+            'isRegistered': true,
+          });
+        }
+      }
+
       // Get registered users
-      final registeredUsers = await _userService.searchUsers(searchQuery);
+      final registeredUsers =
+          await _userService?.searchUsers(searchQuery) ?? [];
       for (final user in registeredUsers) {
         availableUsers.add({
           'id': user.id,
