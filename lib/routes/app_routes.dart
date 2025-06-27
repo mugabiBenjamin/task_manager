@@ -9,6 +9,7 @@ import '../screens/profile/user_profile_screen.dart';
 import '../screens/tasks/starred_tasks_screen.dart';
 import '../screens/tasks/labels_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/auth/invite_user_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -22,6 +23,7 @@ class AppRoutes {
   static const String labels = '/labels';
   static const String settings = '/settings';
   static const String help = '/help';
+  static const String inviteUser = '/invite_user';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -45,6 +47,7 @@ class AppRoutes {
       starredTasks: (context) => const StarredTasksScreen(),
       labels: (context) => const LabelsScreen(),
       settings: (context) => const SettingsScreen(),
+      inviteUser: (context) => const InviteUserScreen(),
     };
   }
 }
