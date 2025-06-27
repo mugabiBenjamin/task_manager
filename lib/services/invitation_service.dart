@@ -1,6 +1,7 @@
 import 'dart:math';
-import '../models/invitation_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/constants/firebase_constants.dart';
+import '../models/invitation_model.dart';
 import 'firestore_service.dart';
 import 'email_service.dart';
 import 'user_service.dart';
@@ -22,11 +23,12 @@ class InvitationService {
     );
   }
 
-  // Send invitation email
+  // Send invitation email with EmailJS
   Future<bool> sendInvitation({
     required String email,
     required String invitedBy,
     required String invitedByName,
+    required String inviterEmail,
   }) async {
     try {
       // Check if user already exists
@@ -48,7 +50,7 @@ class InvitationService {
       // Create invitation
       final token = _generateToken();
       final invitation = InvitationModel(
-        id: '', // Will be set by Firestore
+        id: '',
         email: email.toLowerCase().trim(),
         invitedBy: invitedBy,
         invitedByName: invitedByName,
@@ -59,22 +61,26 @@ class InvitationService {
 
       // Save to Firestore
       final invitationId = await _firestoreService.createDocument(
-        'invitations', // Add this to your firebase_constants
+        FirebaseConstants.invitationsCollection,
         invitation.toMap(),
       );
 
-      // Send email
+      // Send email via EmailJS
+      final verificationLink =
+          'https://task-manager-1763e.web.app/accept-invitation?token=$token';
       final emailSent = await EmailService.sendInvitationEmail(
         recipientEmail: email,
         inviterName: invitedByName,
-        inviterEmail: '', // You might want to pass inviter's email
+        inviterEmail: inviterEmail,
         invitationToken: token,
-        appUrl: 'https://yourapp.com', // Replace with your app URL
+        verificationLink: verificationLink,
       );
 
       if (!emailSent) {
-        // If email fails, delete the invitation
-        await _firestoreService.deleteDocument('invitations', invitationId);
+        await _firestoreService.deleteDocument(
+          FirebaseConstants.invitationsCollection,
+          invitationId,
+        );
         throw Exception('Failed to send invitation email');
       }
 
@@ -89,9 +95,11 @@ class InvitationService {
     try {
       final invitations = await _firestoreService
           .streamCollection(
-            'invitations',
-            queryBuilder: (query) =>
-                query.where('email', isEqualTo: email.toLowerCase().trim()),
+            FirebaseConstants.invitationsCollection,
+            queryBuilder: (query) => query.where(
+              FirebaseConstants.emailField,
+              isEqualTo: email.toLowerCase().trim(),
+            ),
           )
           .first;
 
@@ -103,16 +111,18 @@ class InvitationService {
     }
   }
 
-  // Accept invitation and create user account
+  // Accept invitation
   Future<bool> acceptInvitation(String token, String displayName) async {
     try {
-      // Find invitation by token
       final invitations = await _firestoreService
           .streamCollection(
-            'invitations',
+            FirebaseConstants.invitationsCollection,
             queryBuilder: (query) => query
                 .where('token', isEqualTo: token)
-                .where('status', isEqualTo: 'pending'),
+                .where(
+                  FirebaseConstants.statusField,
+                  isEqualTo: InvitationStatus.pending.value,
+                ),
           )
           .first;
 
@@ -126,20 +136,30 @@ class InvitationService {
         invitationData,
       );
 
-      // Check if invitation is not expired (optional - you can add expiry logic)
+      // Check invitation expiry (7 days)
       final daysSinceInvitation = DateTime.now()
           .difference(invitation.createdAt)
           .inDays;
       if (daysSinceInvitation > 7) {
-        // 7 days expiry
         throw Exception('Invitation has expired');
       }
 
       // Update invitation status
-      await _firestoreService.updateDocument('invitations', invitation.id, {
-        'status': InvitationStatus.accepted.value,
-        'acceptedAt': DateTime.now(),
-      });
+      await _firestoreService.updateDocument(
+        FirebaseConstants.invitationsCollection,
+        invitation.id,
+        {
+          FirebaseConstants.statusField: InvitationStatus.accepted.value,
+          'acceptedAt': Timestamp.fromDate(DateTime.now()),
+        },
+      );
+
+      // Create user document if not exists
+      await _userService.getOrCreateUser(
+        invitation.email, // Use email as temporary ID
+        invitation.email,
+        displayName,
+      );
 
       return true;
     } catch (e) {
@@ -151,11 +171,14 @@ class InvitationService {
   Stream<List<InvitationModel>> getPendingInvitationsByUser(String userId) {
     return _firestoreService
         .streamCollection(
-          'invitations',
+          FirebaseConstants.invitationsCollection,
           queryBuilder: (query) => query
-              .where('invitedBy', isEqualTo: userId)
-              .where('status', isEqualTo: 'pending')
-              .orderBy('createdAt', descending: true),
+              .where(FirebaseConstants.invitedByField, isEqualTo: userId)
+              .where(
+                FirebaseConstants.statusField,
+                isEqualTo: InvitationStatus.pending.value,
+              )
+              .orderBy(FirebaseConstants.createdAtField, descending: true),
         )
         .map(
           (invitations) => invitations
@@ -164,7 +187,7 @@ class InvitationService {
         );
   }
 
-  // Get users available for assignment (registered users + accepted invitations)
+  // Get users available for assignment
   Future<List<Map<String, dynamic>>> getUsersAvailableForAssignment(
     String searchQuery,
   ) async {
@@ -182,19 +205,22 @@ class InvitationService {
         });
       }
 
-      // Get accepted invitations (users who accepted but haven't registered yet)
+      // Get accepted invitations
       if (searchQuery.isNotEmpty) {
         final acceptedInvitations = await _firestoreService
             .streamCollection(
-              'invitations',
+              FirebaseConstants.invitationsCollection,
               queryBuilder: (query) => query
-                  .where('status', isEqualTo: 'accepted')
                   .where(
-                    'email',
+                    FirebaseConstants.statusField,
+                    isEqualTo: InvitationStatus.accepted.value,
+                  )
+                  .where(
+                    FirebaseConstants.emailField,
                     isGreaterThanOrEqualTo: searchQuery.toLowerCase(),
                   )
                   .where(
-                    'email',
+                    FirebaseConstants.emailField,
                     isLessThanOrEqualTo: '${searchQuery.toLowerCase()}\uf8ff',
                   ),
             )
@@ -205,17 +231,15 @@ class InvitationService {
             invitationData['id'],
             invitationData,
           );
-          // Check if this email is not already in registered users
           if (!availableUsers.any(
             (user) => user['email'] == invitation.email,
           )) {
             availableUsers.add({
-              'id':
-                  invitation.email, // Use email as ID for non-registered users
+              'id': invitation.email,
               'email': invitation.email,
-              'displayName': invitation.email.split(
-                '@',
-              )[0], // Use email prefix as display name
+              'displayName': invitation.invitedByName.isNotEmpty
+                  ? invitation.invitedByName
+                  : invitation.email.split('@')[0],
               'isRegistered': false,
             });
           }
