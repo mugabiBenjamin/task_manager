@@ -70,6 +70,7 @@ class TaskFormState extends State<TaskForm> {
     _selectedAssignees = widget.task?.assignedTo ?? [];
     _selectedLabels = widget.task?.labels ?? [];
     _isCreator =
+        widget.task == null ||
         context.read<AuthProvider>().user?.uid == widget.task?.createdBy;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
