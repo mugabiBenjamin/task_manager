@@ -7,7 +7,15 @@ import 'invitation_service.dart';
 class UserService {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final InvitationService _invitationService = InvitationService();
+
+  InvitationService? _invitationService;
+
+  UserService({InvitationService? invitationService})
+    : _invitationService = invitationService;
+
+  void setInvitationService(InvitationService invitationService) {
+    _invitationService = invitationService;
+  }
 
   // Get user by ID
   Future<UserModel?> getUserById(String userId) async {
@@ -72,12 +80,14 @@ class UserService {
         });
       }
 
-      // Get users with accepted invitations
-      final acceptedUsers = await _invitationService
-          .getUsersAvailableForAssignment(searchQuery);
-      for (final user in acceptedUsers) {
-        if (!availableUsers.any((u) => u['email'] == user['email'])) {
-          availableUsers.add(user);
+      // Add null check before using _invitationService
+      if (_invitationService != null) {
+        final acceptedUsers = await _invitationService!
+            .getUsersAvailableForAssignment(searchQuery);
+        for (final user in acceptedUsers) {
+          if (!availableUsers.any((u) => u['email'] == user['email'])) {
+            availableUsers.add(user);
+          }
         }
       }
 
