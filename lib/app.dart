@@ -16,6 +16,7 @@ import 'screens/tasks/starred_tasks_screen.dart';
 import 'screens/tasks/task_assignment_screen.dart';
 import 'screens/tasks/task_details_screen.dart';
 import 'screens/tasks/task_list_screen.dart';
+import 'screens/auth/invite_user_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -69,6 +70,8 @@ class App extends StatelessWidget {
           AppRoutes.settings: (context) => const SettingsScreen(),
           AppRoutes.starredTasks: (context) => const StarredTasksScreen(),
           AppRoutes.labels: (context) => const LabelsScreen(),
+          AppRoutes.inviteUser: (context) =>
+              const InviteUserScreen(),
         },
       ),
     );
