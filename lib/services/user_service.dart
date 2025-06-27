@@ -2,10 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/constants/firebase_constants.dart';
 import '../models/user_model.dart';
 import 'firestore_service.dart';
+import 'invitation_service.dart';
 
 class UserService {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final InvitationService _invitationService = InvitationService();
 
   // Get user by ID
   Future<UserModel?> getUserById(String userId) async {
@@ -52,6 +54,40 @@ class UserService {
     }
   }
 
+  // Get users available for task assignment
+  Future<List<Map<String, dynamic>>> getAvailableUsersForTask(
+    String searchQuery,
+  ) async {
+    try {
+      final List<Map<String, dynamic>> availableUsers = [];
+
+      // Get registered users
+      final registeredUsers = await searchUsers(searchQuery);
+      for (final user in registeredUsers) {
+        availableUsers.add({
+          'id': user.id,
+          'email': user.email,
+          'displayName': user.displayName,
+          'isRegistered': true,
+        });
+      }
+
+      // Get users with accepted invitations
+      final acceptedUsers = await _invitationService
+          .getUsersAvailableForAssignment(searchQuery);
+      for (final user in acceptedUsers) {
+        if (!availableUsers.any((u) => u['email'] == user['email'])) {
+          availableUsers.add(user);
+        }
+      }
+
+      return availableUsers;
+    } catch (e) {
+      throw Exception('Failed to get available users for task: $e');
+    }
+  }
+
+  // Update email notification preference
   Future<void> updateEmailNotificationPreference(
     String userId,
     bool enabled,
@@ -102,6 +138,7 @@ class UserService {
     }
   }
 
+  // Create user document
   Future<UserModel> createUserDocument(
     String userId,
     String email,
@@ -127,38 +164,34 @@ class UserService {
     }
   }
 
+  // Get or create user
   Future<UserModel?> getOrCreateUser(
     String userId,
     String email,
     String displayName,
   ) async {
     try {
-      // Try to get existing user first
       final existingUser = await getUserById(userId);
       if (existingUser != null) {
         return existingUser;
       }
-
-      // Create new user document if doesn't exist
       return await createUserDocument(userId, email, displayName);
     } catch (e) {
       throw Exception('Failed to get or create user: $e');
     }
   }
 
+  // Delete user
   Future<void> deleteUser(String userId) async {
     try {
       final batch = _firestore.batch();
-
-      // Delete user document
       final userDoc = _firestore
           .collection(FirebaseConstants.usersCollection)
           .doc(userId);
       batch.delete(userDoc);
 
-      // Delete user's tasks (if you have tasks collection)
       final tasksQuery = await _firestore
-          .collection('tasks')
+          .collection(FirebaseConstants.tasksCollection)
           .where('createdBy', isEqualTo: userId)
           .get();
 
