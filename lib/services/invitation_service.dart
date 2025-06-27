@@ -162,12 +162,6 @@ class InvitationService {
       );
 
       // Create user document if not exists
-      await _userService?.getOrCreateUser(
-        invitation.email, // Use email as temporary ID
-        invitation.email,
-        displayName,
-      );
-
       if (_userService != null) {
         await _userService!.getOrCreateUser(
           invitation.email,
@@ -209,6 +203,7 @@ class InvitationService {
     try {
       final List<Map<String, dynamic>> availableUsers = [];
 
+      // Get registered users
       if (_userService != null) {
         final registeredUsers = await _userService!.searchUsers(searchQuery);
         for (final user in registeredUsers) {
@@ -219,18 +214,6 @@ class InvitationService {
             'isRegistered': true,
           });
         }
-      }
-
-      // Get registered users
-      final registeredUsers =
-          await _userService?.searchUsers(searchQuery) ?? [];
-      for (final user in registeredUsers) {
-        availableUsers.add({
-          'id': user.id,
-          'email': user.email,
-          'displayName': user.displayName,
-          'isRegistered': true,
-        });
       }
 
       // Get accepted invitations
