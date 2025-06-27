@@ -5,10 +5,10 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/date_helper.dart';
 import '../../models/task_model.dart';
 import '../../providers/task_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/tasks/task_form.dart';
-import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_drawer.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
@@ -25,6 +25,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   TaskModel? _task;
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isCreator = false;
 
   @override
   void initState() {
@@ -36,11 +37,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   Future<void> _loadTask() async {
     final taskProvider = context.read<TaskProvider>();
+    final authProvider = context.read<AuthProvider>();
     try {
       final task = await taskProvider.getTaskById(widget.taskId);
       if (task != null) {
         setState(() {
           _task = task;
+          _isCreator = authProvider.user?.uid == task.createdBy;
           _isLoading = false;
         });
       } else {
@@ -69,12 +72,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           ),
         ),
         actions: [
-          if (_task != null)
+          if (_task != null && _isCreator)
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () => _showDeleteDialog(context),
             ),
-          if (_task != null)
+          if (_task != null && _isCreator)
             IconButton(
               icon: const Icon(Icons.assignment),
               onPressed: () => Navigator.pushNamed(
@@ -106,8 +109,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                   TaskForm(
                     key: _formKey,
                     task: _task,
-                    isEditing: true,
-                    submitButtonText: 'Update Task',
+                    isEditing: _isCreator,
+                    submitButtonText: _isCreator
+                        ? 'Update Task'
+                        : 'Update Status',
                     onSubmit: (updatedTask) =>
                         _updateTask(context, updatedTask),
                     onFormReady: () {},
@@ -118,7 +123,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                       return CustomButton(
                         text: taskProvider.isLoading
                             ? 'Updating...'
-                            : 'Update Task',
+                            : _isCreator
+                            ? 'Update Task'
+                            : 'Update Status',
                         onPressed: taskProvider.isLoading
                             ? null
                             : () {
@@ -161,28 +168,40 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   void _updateTask(BuildContext context, TaskModel task) async {
     final taskProvider = context.read<TaskProvider>();
+    final authProvider = context.read<AuthProvider>();
     final navigator = Navigator.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    final updates = {
-      'title': task.title,
-      'description': task.description,
-      'status': task.status.value,
-      'priority': task.priority.value,
-      'startDate': task.startDate != null
-          ? DateHelper.parseDate(
-              DateFormat('yyyy-MM-dd').format(task.startDate!),
-            )
-          : null,
-      'dueDate': task.dueDate != null
-          ? DateHelper.parseDate(DateFormat('yyyy-MM-dd').format(task.dueDate!))
-          : null,
-      'assignedTo': task.assignedTo,
-      'labels': task.labels,
-      'updatedAt': DateTime.now(),
-    };
+    if (authProvider.user?.uid == null) {
+      return;
+    }
 
-    final success = await taskProvider.updateTask(widget.taskId, updates);
+    bool success;
+    if (_isCreator) {
+      final updates = {
+        'title': task.title,
+        'description': task.description,
+        'status': task.status.value,
+        'priority': task.priority.value,
+        'startDate': task.startDate != null
+            ? DateHelper.parseDate(
+                DateFormat('yyyy-MM-dd').format(task.startDate!),
+              )
+            : null,
+        'dueDate': task.dueDate != null
+            ? DateHelper.parseDate(
+                DateFormat('yyyy-MM-dd').format(task.dueDate!),
+              )
+            : null,
+        'assignedTo': task.assignedTo,
+        'labels': task.labels,
+        'updatedAt': DateTime.now(),
+      };
+      success = await taskProvider.updateTask(widget.taskId, updates);
+    } else {
+      success = await taskProvider.updateTaskStatus(widget.taskId, task.status);
+    }
+
     if (success && mounted) {
       navigator.pop();
       scaffoldMessenger.showSnackBar(
