@@ -12,6 +12,7 @@ import '../services/invitation_service.dart';
 class TaskProvider extends ChangeNotifier {
   final TaskService _taskService = TaskService();
   final UserService _userService = UserService();
+  // ignore: unused_field
   final InvitationService _invitationService = InvitationService();
   AuthProvider? _authProvider;
 
