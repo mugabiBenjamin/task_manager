@@ -7,8 +7,8 @@ import '../core/utils/date_helper.dart';
 class EmailService {
   static const String _serviceId = 'service_gevpfid';
   static const String _taskTemplateId = 'template_77yrls5';
+  static const String _invitationTemplateId = 'template_5p71bhu';
   static const String _publicKey = 'NNbZWvJBb1rruB8eY';
-  static const String _invitationTemplateId = 'template_tifeuzq';
   static const String _apiUrl = 'https://api.emailjs.com/api/v1.0/email/send';
 
   // Send task assignment notification
