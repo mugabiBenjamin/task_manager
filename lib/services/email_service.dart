@@ -7,6 +7,7 @@ import '../core/utils/date_helper.dart';
 class EmailService {
   static const String _serviceId = 'service_e3qqbkr';
   static const String _taskTemplateId = 'template_77yrls5';
+  static const String _publicKey = 'NNbZWvJBb1rruB8eY';
   static const String _invitationTemplateId = 'template_tifeuzq';
   static const String _apiUrl = 'https://api.emailjs.com/api/v1.0/email/send';
 
@@ -52,6 +53,7 @@ class EmailService {
           body: json.encode({
             'service_id': _serviceId,
             'template_id': _taskTemplateId,
+            'user_id': _publicKey,
             'template_params': templateParams,
           }),
         );
@@ -99,6 +101,7 @@ class EmailService {
         body: json.encode({
           'service_id': _serviceId,
           'template_id': _invitationTemplateId,
+          'user_id': _publicKey,
           'template_params': templateParams,
         }),
       );
