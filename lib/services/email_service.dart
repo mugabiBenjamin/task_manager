@@ -38,9 +38,10 @@ class EmailService {
           'creator_name':
               creator['displayName'] ?? creator['email'].split('@')[0],
           'creator_email': creator['email'],
-          'task_link': 'https://task-manager-1763e.web.app/tasks/${task.id}',
+          'task_link':
+              'https://task-pages-q8ts1frko-mugabibenjamins-projects.vercel.app/assignment.html?id=${task.id}',
           'unsubscribe_link': assignee['isRegistered']
-              ? 'https://task-manager-1763e.web.app/unsubscribe/${assignee['id']}'
+              ? 'https://task-pages-q8ts1frko-mugabibenjamins-projects.vercel.app/unsubscribe/${assignee['id']}'
               : '',
         };
 
@@ -96,7 +97,8 @@ class EmailService {
         'to_email': recipientEmail,
         'inviter_name': inviterName,
         'inviter_email': inviterEmail,
-        'invitation_link': verificationLink,
+        'invitation_link':
+            'https://task-pages-q8ts1frko-mugabibenjamins-projects.vercel.app/invitation.html?token=${invitationToken}',
         'app_name': 'Task Manager',
       };
 
