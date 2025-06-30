@@ -336,14 +336,19 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> verifyInvitationToken(String token, String displayName) async {
+    _setLoading(true);
+    _clearError();
+
     try {
-      // CHANGED: Use the initialized _invitationService instead of _authService
       final success = await _invitationService.acceptInvitation(
         token,
         displayName,
       );
+      _setLoading(false);
       return success;
     } catch (e) {
+      _setError(_parseFirebaseError(e)); // CHANGED: proper error handling
+      _setLoading(false);
       return false;
     }
   }
@@ -361,6 +366,21 @@ class AuthProvider extends ChangeNotifier {
         // Refresh user data after successful invitation acceptance
         await loadUserData();
       }
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _setError(_parseFirebaseError(e));
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> declineInvitation(String token) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _invitationService.declineInvitation(token);
       _setLoading(false);
       return success;
     } catch (e) {
