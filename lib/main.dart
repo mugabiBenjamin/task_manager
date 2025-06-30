@@ -11,10 +11,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // ADDED: Initialize deep links here
   _appLinks = AppLinks();
-
-  // ADDED: Handle initial deep link
+  
   final initialLink = await _appLinks.getInitialLink();
   if (initialLink != null) {
     // Store for later handling after app starts
@@ -23,7 +21,6 @@ void main() async {
     });
   }
 
-  // ADDED: Listen for deep links while app is running
   _appLinks.uriLinkStream.listen((Uri uri) {
     handleDeepLink(uri);
   });
@@ -31,7 +28,6 @@ void main() async {
   runApp(const App());
 }
 
-// ADD: Deep link handler function after main()
 void handleDeepLink(Uri uri) {
   if (uri.scheme == 'taskmanager') {
     switch (uri.host) {
