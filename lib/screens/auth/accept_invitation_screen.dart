@@ -60,6 +60,13 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
                         ? const CircularProgressIndicator()
                         : const Text('Accept Invitation'),
                   ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: authProvider.isLoading
+                        ? null
+                        : _declineInvitation,
+                    child: const Text('Decline Invitation'),
+                  ),
                 ],
               ),
             ),
@@ -135,5 +142,24 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
         ),
       ),
     );
+  }
+
+  // ADDED: Decline invitation handler
+  void _declineInvitation() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    final success = await authProvider.declineInvitation(widget.token);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invitation declined'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    }
   }
 }
