@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/auth/accept_invitation_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 import '../screens/tasks/task_list_screen.dart';
@@ -24,6 +25,7 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String help = '/help';
   static const String inviteUser = '/invite_user';
+  static const String acceptInvitation = '/accept_invitation';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -48,6 +50,10 @@ class AppRoutes {
       labels: (context) => const LabelsScreen(),
       settings: (context) => const SettingsScreen(),
       inviteUser: (context) => const InviteUserScreen(),
+      acceptInvitation: (context) {
+  final token = ModalRoute.of(context)!.settings.arguments as String;
+  return AcceptInvitationScreen(token: token);
+},
     };
   }
 }
