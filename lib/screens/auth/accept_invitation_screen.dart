@@ -1,4 +1,3 @@
-// NEW FILE: Complete file needed for invitation acceptance
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -74,17 +73,67 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // CHANGED: Use AuthProvider's verifyInvitationToken method
-      final success = await authProvider.verifyInvitationToken(
-        widget.token,
-        _displayNameController.text,
-      );
+      // ADDED: Show loading dialog
+      _showLoadingDialog();
 
-      if (success && mounted) {
-        // CHANGED: Use AppRoutes constant instead of hard-coded string
-        Navigator.of(context).pushReplacementNamed(AppRoutes.taskList);
+      try {
+        final success = await authProvider.verifyInvitationToken(
+          widget.token,
+          _displayNameController.text,
+        );
+
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          if (success) {
+            // ADDED: Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Invitation accepted successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+
+            Navigator.of(context).pushReplacementNamed(AppRoutes.taskList);
+          } else {
+            // ADDED: Show error if no specific error message
+            if (authProvider.errorMessage == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Failed to accept invitation. Please try again.',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
-      // Error handling is now managed by AuthProvider
     }
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Accepting invitation...'),
+          ],
+        ),
+      ),
+    );
   }
 }
