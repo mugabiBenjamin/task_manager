@@ -1,5 +1,7 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../core/constants/firebase_constants.dart';
 import '../models/invitation_model.dart';
 import 'firestore_service.dart';
@@ -29,6 +31,12 @@ class InvitationService {
     );
   }
 
+  bool _isValidEmail(String email) {
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(email);
+  }
+
   // Send invitation email with EmailJS
   Future<bool> sendInvitation({
     required String email,
@@ -37,6 +45,11 @@ class InvitationService {
     required String inviterEmail,
   }) async {
     try {
+      // ADDED: Email format validation
+      if (!_isValidEmail(email)) {
+        throw Exception('Invalid email format');
+      }
+
       if (_userService != null) {
         final existingUsers = await _userService!.searchUsers(email);
         if (existingUsers.any(
@@ -46,7 +59,6 @@ class InvitationService {
         }
       }
 
-      // Check if invitation already sent
       final existingInvitations = await getInvitationsByEmail(email);
       if (existingInvitations.any(
         (inv) => inv.status == InvitationStatus.pending,
@@ -54,7 +66,6 @@ class InvitationService {
         throw Exception('Invitation already sent to this email');
       }
 
-      // Create invitation
       final token = _generateToken();
       final invitation = InvitationModel(
         id: '',
@@ -66,15 +77,13 @@ class InvitationService {
         token: token,
       );
 
-      // Save to Firestore
       final invitationId = await _firestoreService.createDocument(
         FirebaseConstants.invitationsCollection,
         invitation.toMap(),
       );
 
-      // Send email via EmailJS
-      final verificationLink =
-          'https://task-manager-1763e.web.app/accept-invitation?token=$token';
+      // CHANGED: Updated verification link to use deep link
+      final verificationLink = 'taskmanager://invite?token=$token';
       final emailSent = await EmailService.sendInvitationEmail(
         recipientEmail: email,
         inviterName: invitedByName,
@@ -143,7 +152,6 @@ class InvitationService {
         invitationData,
       );
 
-      // Check invitation expiry (7 days)
       final daysSinceInvitation = DateTime.now()
           .difference(invitation.createdAt)
           .inDays;
@@ -151,7 +159,7 @@ class InvitationService {
         throw Exception('Invitation has expired');
       }
 
-      // Update invitation status
+      // CHANGED: Update invitation status first
       await _firestoreService.updateDocument(
         FirebaseConstants.invitationsCollection,
         invitation.id,
@@ -161,18 +169,56 @@ class InvitationService {
         },
       );
 
-      // Create user document if not exists
+      // CHANGED: Create user asynchronously to avoid blocking
       if (_userService != null) {
-        await _userService!.getOrCreateUser(
-          invitation.email,
-          invitation.email,
-          displayName,
+        unawaited(
+          _userService!.getOrCreateUser(
+            invitation.email,
+            invitation.email,
+            displayName,
+          ),
         );
       }
 
       return true;
     } catch (e) {
       throw Exception('Failed to accept invitation: $e');
+    }
+  }
+
+  Future<void> cleanupExpiredInvitations() async {
+    try {
+      final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
+
+      final expiredInvitations = await _firestoreService
+          .streamCollection(
+            FirebaseConstants.invitationsCollection,
+            queryBuilder: (query) => query
+                .where(
+                  FirebaseConstants.statusField,
+                  isEqualTo: InvitationStatus.pending.value,
+                )
+                .where(
+                  FirebaseConstants.createdAtField,
+                  isLessThan: Timestamp.fromDate(cutoffDate),
+                ),
+          )
+          .first;
+
+      for (final invitationData in expiredInvitations) {
+        await _firestoreService.updateDocument(
+          FirebaseConstants.invitationsCollection,
+          invitationData['id'],
+          {
+            FirebaseConstants.statusField: InvitationStatus.expired.value,
+            'expiredAt': Timestamp.fromDate(DateTime.now()),
+          },
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to cleanup expired invitations: $e');
+      }
     }
   }
 
