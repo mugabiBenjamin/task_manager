@@ -26,7 +26,8 @@ class InvitationModel {
   final InvitationStatus status;
   final DateTime createdAt;
   final DateTime? acceptedAt;
-  final DateTime? declinedAt; // Added for declined status tracking
+  final DateTime? declinedAt;
+  final DateTime? expiredAt;
   final String? token;
 
   InvitationModel({
@@ -38,6 +39,7 @@ class InvitationModel {
     required this.createdAt,
     this.acceptedAt,
     this.declinedAt,
+    this.expiredAt,
     this.token,
   });
 
@@ -50,6 +52,7 @@ class InvitationModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'acceptedAt': acceptedAt != null ? Timestamp.fromDate(acceptedAt!) : null,
       'declinedAt': declinedAt != null ? Timestamp.fromDate(declinedAt!) : null,
+      'expiredAt': expiredAt != null ? Timestamp.fromDate(expiredAt!) : null,
       'token': token,
     };
   }
@@ -68,6 +71,9 @@ class InvitationModel {
       declinedAt: map['declinedAt'] != null
           ? (map['declinedAt'] as Timestamp).toDate()
           : null,
+      expiredAt: map['expiredAt'] != null
+          ? (map['expiredAt'] as Timestamp).toDate()
+          : null,
       token: map['token'],
     );
   }
@@ -81,6 +87,7 @@ class InvitationModel {
     DateTime? createdAt,
     DateTime? acceptedAt,
     DateTime? declinedAt,
+    DateTime? expiredAt,
     String? token,
   }) {
     return InvitationModel(
@@ -92,6 +99,7 @@ class InvitationModel {
       createdAt: createdAt ?? this.createdAt,
       acceptedAt: acceptedAt ?? this.acceptedAt,
       declinedAt: declinedAt ?? this.declinedAt,
+      expiredAt: expiredAt ?? this.expiredAt,
       token: token ?? this.token,
     );
   }
