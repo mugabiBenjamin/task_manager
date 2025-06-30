@@ -186,6 +186,45 @@ class InvitationService {
     }
   }
 
+  Future<bool> declineInvitation(String token) async {
+    try {
+      final invitations = await _firestoreService
+          .streamCollection(
+            FirebaseConstants.invitationsCollection,
+            queryBuilder: (query) => query
+                .where('token', isEqualTo: token)
+                .where(
+                  FirebaseConstants.statusField,
+                  isEqualTo: InvitationStatus.pending.value,
+                ),
+          )
+          .first;
+
+      if (invitations.isEmpty) {
+        throw Exception('Invalid or expired invitation');
+      }
+
+      final invitationData = invitations.first;
+      final invitation = InvitationModel.fromMap(
+        invitationData['id'],
+        invitationData,
+      );
+
+      await _firestoreService.updateDocument(
+        FirebaseConstants.invitationsCollection,
+        invitation.id,
+        {
+          FirebaseConstants.statusField: InvitationStatus.declined.value,
+          'declinedAt': Timestamp.fromDate(DateTime.now()),
+        },
+      );
+
+      return true;
+    } catch (e) {
+      throw Exception('Failed to decline invitation: $e');
+    }
+  }
+
   Future<void> cleanupExpiredInvitations() async {
     try {
       final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
