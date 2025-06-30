@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum InvitationStatus {
   pending('pending', 'Pending'),
   accepted('accepted', 'Accepted'),
-  declined('declined', 'Declined');
+  declined('declined', 'Declined'),
+  expired('expired', 'Expired');
 
   const InvitationStatus(this.value, this.displayName);
   final String value;
