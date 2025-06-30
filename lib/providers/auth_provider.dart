@@ -348,6 +348,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> acceptInvitation(String token, String displayName) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _invitationService.acceptInvitation(
+        token,
+        displayName,
+      );
+      if (success) {
+        // Refresh user data after successful invitation acceptance
+        await loadUserData();
+      }
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _setError(_parseFirebaseError(e));
+      _setLoading(false);
+      return false;
+    }
+  }
+
   Timer? _verificationCheckTimer;
 
   void _startPeriodicVerificationCheck() {
