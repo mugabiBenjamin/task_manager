@@ -5,11 +5,69 @@ import '../models/task_model.dart';
 import '../core/utils/date_helper.dart';
 
 class EmailService {
-  static const String _serviceId = 'service_gevpfid';
-  static const String _taskTemplateId = 'template_77yrls5';
-  static const String _invitationTemplateId = 'template_5p71bhu';
-  static const String _publicKey = 'NNbZWvJBb1rruB8eY';
+  static String get _serviceId => const String.fromEnvironment(
+    'EMAILJS_SERVICE_ID',
+    defaultValue: 'service_gevpfid',
+  );
+  static String get _taskTemplateId => const String.fromEnvironment(
+    'EMAILJS_TASK_TEMPLATE_ID',
+    defaultValue: 'template_77yrls5',
+  );
+  static String get _invitationTemplateId => const String.fromEnvironment(
+    'EMAILJS_INVITATION_TEMPLATE_ID',
+    defaultValue: 'template_5p71bhu',
+  );
+  static String get _publicKey => const String.fromEnvironment(
+    'EMAILJS_PUBLIC_KEY',
+    defaultValue: 'NNbZWvJBb1rruB8eY',
+  );
+  static String get _baseUrl => const String.fromEnvironment(
+    'BASE_URL',
+    defaultValue: 'https://task-manager-1763e.web.app',
+  );
   static const String _apiUrl = 'https://api.emailjs.com/api/v1.0/email/send';
+  static bool _isValidEmail(String email) {
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(email);
+  }
+
+  static Future<bool> _sendEmailWithRetry({
+    required Map<String, dynamic> requestBody,
+    int maxRetries = 3,
+  }) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await http.post(
+          Uri.parse(_apiUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'origin': 'http://localhost',
+          },
+          body: json.encode(requestBody),
+        );
+
+        if (response.statusCode == 200) {
+          return true;
+        }
+
+        if (attempt == maxRetries) {
+          throw Exception(
+            'Failed after $maxRetries attempts: ${response.body}',
+          );
+        }
+
+        // Wait before retry with exponential backoff
+        await Future.delayed(Duration(seconds: attempt * 2));
+      } catch (e) {
+        if (attempt == maxRetries) {
+          rethrow;
+        }
+        await Future.delayed(Duration(seconds: attempt * 2));
+      }
+    }
+    return false;
+  }
 
   // Send task assignment notification
   static Future<bool> sendTaskAssignmentNotification({
@@ -19,9 +77,16 @@ class EmailService {
   }) async {
     try {
       for (final assignee in assignees) {
-        // Skip if registered user opted out of email notifications
         if (assignee['isRegistered'] == true &&
             assignee['emailNotifications'] == false) {
+          continue;
+        }
+
+        // ADDED: Email validation
+        if (!_isValidEmail(assignee['email'])) {
+          if (kDebugMode) {
+            print('Invalid email format: ${assignee['email']}');
+          }
           continue;
         }
 
@@ -38,40 +103,30 @@ class EmailService {
           'creator_name':
               creator['displayName'] ?? creator['email'].split('@')[0],
           'creator_email': creator['email'],
-          'task_link':
-              'https://task-pages-q8ts1frko-mugabibenjamins-projects.vercel.app/assignment.html?id=${task.id}',
+          // CHANGED: Use deep link instead of web URL
+          'task_link': 'taskmanager://task?id=${task.id}',
+          'web_task_link': '$_baseUrl/task/${task.id}',
           'unsubscribe_link': assignee['isRegistered']
-              ? 'https://task-pages-q8ts1frko-mugabibenjamins-projects.vercel.app/unsubscribe/${assignee['id']}'
+              ? '$_baseUrl/unsubscribe/${assignee['id']}'
               : '',
         };
 
-        final response = await http.post(
-          Uri.parse(_apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'origin': 'http://localhost',
-          },
-          body: json.encode({
-            'service_id': _serviceId,
-            'template_id': _taskTemplateId,
-            'user_id': _publicKey,
-            'template_params': templateParams,
-          }),
-        );
+        final requestBody = {
+          'service_id': _serviceId,
+          'template_id': _taskTemplateId,
+          'user_id': _publicKey,
+          'template_params': templateParams,
+        };
 
-        if (kDebugMode) {
-          print('Email API Response Status: ${response.statusCode}');
-          print('Email API Response Body: ${response.body}');
-          print(
-            'Request Body: ${json.encode({'service_id': _serviceId, 'template_id': _taskTemplateId, 'user_id': _publicKey, 'template_params': templateParams})}',
-          );
+        // CHANGED: Use retry mechanism
+        final success = await _sendEmailWithRetry(requestBody: requestBody);
+
+        if (!success) {
+          if (kDebugMode) {
+            print('Failed to send email to ${assignee['email']} after retries');
+          }
         }
 
-        if (response.statusCode != 200) {
-          throw Exception('Failed to send email: ${response.body}');
-        }
-
-        // Add delay between emails to respect rate limiting
         await Future.delayed(const Duration(seconds: 2));
       }
       return true;
@@ -92,43 +147,32 @@ class EmailService {
     required String verificationLink,
   }) async {
     try {
+      // ADDED: Email validation
+      if (!_isValidEmail(recipientEmail)) {
+        throw Exception('Invalid email format');
+      }
+
       final templateParams = {
         'to_name': recipientEmail.split('@')[0],
         'to_email': recipientEmail,
         'inviter_name': inviterName,
         'inviter_email': inviterEmail,
-        'invitation_link':
-            'https://task-pages-q8ts1frko-mugabibenjamins-projects.vercel.app/invitation.html?token=${invitationToken}',
+        // CHANGED: Use deep link for mobile app
+        'invitation_link': 'taskmanager://invite?token=$invitationToken',
+        'web_invitation_link':
+            '$_baseUrl/accept-invitation?token=$invitationToken',
         'app_name': 'Task Manager',
       };
 
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'origin': 'http://localhost',
-        },
-        body: json.encode({
-          'service_id': _serviceId,
-          'template_id': _invitationTemplateId,
-          'user_id': _publicKey,
-          'template_params': templateParams,
-        }),
-      );
+      final requestBody = {
+        'service_id': _serviceId,
+        'template_id': _invitationTemplateId,
+        'user_id': _publicKey,
+        'template_params': templateParams,
+      };
 
-      if (kDebugMode) {
-        print('Email API Response Status: ${response.statusCode}');
-        print('Email API Response Body: ${response.body}');
-        print(
-          'Request Body: ${json.encode({'service_id': _serviceId, 'template_id': _invitationTemplateId, 'user_id': _publicKey, 'template_params': templateParams})}',
-        );
-      }
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to send invitation: ${response.body}');
-      }
-
-      return true;
+      // CHANGED: Use retry mechanism
+      return await _sendEmailWithRetry(requestBody: requestBody);
     } catch (e) {
       if (kDebugMode) {
         print('Invitation email failed: $e');
