@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/invitation_service.dart';
 import '../../widgets/common/custom_button.dart';
@@ -29,13 +30,15 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
       final authService = AuthService();
       final currentUser = await authService.getCurrentUserData();
 
-      // Check if current user data is available
-      if (currentUser == null) {
+      if (currentUser == null ||
+          currentUser.email.isEmpty ||
+          currentUser.displayName.isEmpty ||
+          currentUser.id.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Unable to get user information. Please try again.',
+                'Failed to retrieve valid user information. Please ensure you are logged in and try again.',
               ),
               backgroundColor: AppConstants.errorColor,
             ),
@@ -43,6 +46,13 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
         }
         setState(() => _isLoading = false);
         return;
+      }
+
+      if (kDebugMode) {
+        print(
+          'Current user data: id=${currentUser.id}, '
+          'email=${currentUser.email}, displayName=${currentUser.displayName}',
+        );
       }
 
       final invitationService = InvitationService();
@@ -57,8 +67,7 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Invitation sent successfully!'),
-              backgroundColor: AppConstants
-                  .successColor, // ADDED: Use success color for positive feedback
+              backgroundColor: AppConstants.successColor,
             ),
           );
           Navigator.pop(context, true);
@@ -78,8 +87,16 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
           } else if (e.toString().contains('permission-denied')) {
             errorMessage =
                 'Permission denied. Please check your account settings.';
+          } else if (e.toString().contains(
+            'Null check operator used on a null value',
+          )) {
+            errorMessage =
+                'An unexpected null value occurred. Please try again or contact support.';
           } else {
             errorMessage = 'An error occurred: ${e.toString()}';
+          }
+          if (kDebugMode) {
+            print('Invitation error: $errorMessage');
           }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
