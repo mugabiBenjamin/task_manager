@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/firebase_constants.dart';
+import '../core/enums/invitation_status.dart';
 import '../models/invitation_model.dart';
 import 'firestore_service.dart';
 import 'email_service.dart';
@@ -59,26 +60,58 @@ class InvitationService {
         }
       }
 
-      final existingInvitations = await getInvitationsByEmail(email);
-      if (existingInvitations.any(
-        (inv) => inv.status == InvitationStatus.pending,
-      )) {
-        throw Exception('Invitation already sent to this email');
+      final emailLower = email.toLowerCase().trim();
+      final existingInvitations = await getInvitationsByEmail(emailLower);
+
+      for (final invitation in existingInvitations) {
+        if (invitation.status == InvitationStatus.pending) {
+          if (invitation.expiresAt!.isBefore(DateTime.now())) {
+            // Mark as expired
+            await _firestoreService.updateDocument(
+              FirebaseConstants.invitationsCollection,
+              invitation.id,
+              {
+                FirebaseConstants.statusField: InvitationStatus.expired.value,
+                'expiresAt': Timestamp.fromDate(DateTime.now()),
+              },
+            );
+          } else {
+            if (kDebugMode) {
+              print('Invitation already sent to $emailLower');
+            }
+            throw Exception('Invitation already sent to this email');
+          }
+        } else if (invitation.status == InvitationStatus.declined ||
+            invitation.status == InvitationStatus.expired) {
+          // Delete declined or expired invitation
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            invitation.id,
+          );
+          if (kDebugMode) {
+            print(
+              'Deleted declined/expired invitation for $emailLower: ${invitation.id}',
+            );
+          }
+        }
       }
 
       final token = _generateToken();
       final invitation = InvitationModel(
-        id: '',
-        email: email.toLowerCase().trim(), // Ensure lowercase email
+        id: '', // ID will be set by Firestore
+        email: emailLower,
         invitedBy: invitedBy,
         invitedByName: invitedByName,
         status: InvitationStatus.pending,
         createdAt: DateTime.now(),
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
         token: token,
       );
 
       if (kDebugMode) {
-        print('Attempting to create invitation document for email: $email');
+        print(
+          'Attempting to create invitation document for email: $emailLower',
+        );
       }
       final invitationId = await _firestoreService.createDocument(
         FirebaseConstants.invitationsCollection,
@@ -87,10 +120,10 @@ class InvitationService {
       final verificationLink =
           'https://task-pages-opal.vercel.app/invitation.html?token=$token';
       if (kDebugMode) {
-        print('Sending invitation email to: $email with token: $token');
+        print('Sending invitation email to: $emailLower with token: $token');
       }
       final emailSent = await EmailService.sendInvitationEmail(
-        recipientEmail: email,
+        recipientEmail: emailLower,
         inviterName: invitedByName,
         inviterEmail: inviterEmail,
         invitationToken: token,
@@ -108,12 +141,13 @@ class InvitationService {
         throw Exception('Failed to send invitation email');
       }
       if (kDebugMode) {
-        print('Invitation sent successfully to: $email');
+        print('Invitation sent successfully to: $emailLower');
       }
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('Error sending invitation to $email: $e');
+        var emailLower = email.toLowerCase().trim();
+        print('Error sending invitation to $emailLower: $e');
       }
       throw Exception('$e');
     }
@@ -122,7 +156,6 @@ class InvitationService {
   // Get invitations by email
   Future<List<InvitationModel>> getInvitationsByEmail(String email) async {
     try {
-      // CHANGED: Ensure lowercase email in query
       final invitations = await _firestoreService
           .streamCollection(
             FirebaseConstants.invitationsCollection,
@@ -171,10 +204,18 @@ class InvitationService {
         invitationData,
       );
 
-      final daysSinceInvitation = DateTime.now()
-          .difference(invitation.createdAt)
-          .inDays;
-      if (daysSinceInvitation > 7) {
+      if (invitation.expiresAt!.isBefore(DateTime.now())) {
+        if (kDebugMode) {
+          print('Invitation expired for token: $token');
+        }
+        await _firestoreService.updateDocument(
+          FirebaseConstants.invitationsCollection,
+          invitation.id,
+          {
+            FirebaseConstants.statusField: InvitationStatus.expired.value,
+            'expiresAt': Timestamp.fromDate(DateTime.now()),
+          },
+        );
         throw Exception('Invitation has expired');
       }
 
@@ -201,13 +242,11 @@ class InvitationService {
         );
       }
 
-      // ADDED: Log successful acceptance
       if (kDebugMode) {
         print('Invitation accepted successfully for token: $token');
       }
       return true;
     } catch (e) {
-      // CHANGED: Log detailed error
       if (kDebugMode) {
         print('Error accepting invitation for token: $token: $e');
       }
@@ -215,6 +254,7 @@ class InvitationService {
     }
   }
 
+  // Decline invitation
   Future<bool> declineInvitation(String token) async {
     try {
       final invitations = await _firestoreService
@@ -239,7 +279,6 @@ class InvitationService {
         invitationData,
       );
 
-      // ADDED: Log decline attempt
       if (kDebugMode) {
         print('Declining invitation for token: $token');
       }
@@ -264,6 +303,7 @@ class InvitationService {
     }
   }
 
+  // Cleanup expired invitations
   Future<void> cleanupExpiredInvitations() async {
     try {
       final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
@@ -292,7 +332,7 @@ class InvitationService {
           invitationData['id'],
           {
             FirebaseConstants.statusField: InvitationStatus.expired.value,
-            'expiredAt': Timestamp.fromDate(DateTime.now()),
+            'expiresAt': Timestamp.fromDate(DateTime.now()),
           },
         );
       }
