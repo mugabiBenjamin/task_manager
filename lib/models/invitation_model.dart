@@ -26,22 +26,18 @@ class InvitationModel {
     this.expiresAt,
     this.token,
   }) {
-    // ADDED: Validate input to ensure expiresAt is set when status is pending
     if (status == InvitationStatus.pending && expiresAt == null) {
       if (kDebugMode) {
-        print('Warning: expiresAt is null for pending invitation with id: $id');
+        print('Error: expiresAt is null for pending invitation with id: $id');
       }
-      // Optionally throw an exception or set a default value
-      // throw Exception('expiresAt must be set for pending invitations');
+      throw Exception('expiresAt must be set for pending invitations');
     }
-    // ADDED: Validate non-empty required fields
     if (email.isEmpty || invitedBy.isEmpty || invitedByName.isEmpty) {
       throw Exception('email, invitedBy, and invitedByName must not be empty');
     }
   }
 
   Map<String, dynamic> toMap() {
-    // ADDED: Log the expiresAt value before conversion
     if (kDebugMode) {
       print('Converting InvitationModel to map: expiresAt=$expiresAt');
     }
@@ -53,7 +49,6 @@ class InvitationModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'acceptedAt': acceptedAt != null ? Timestamp.fromDate(acceptedAt!) : null,
       'declinedAt': declinedAt != null ? Timestamp.fromDate(declinedAt!) : null,
-      // CHANGED: Explicitly cast expiresAt to DateTime to satisfy type checker
       'expiresAt': expiresAt != null
           ? Timestamp.fromDate(expiresAt as DateTime)
           : null,
@@ -62,7 +57,6 @@ class InvitationModel {
   }
 
   factory InvitationModel.fromMap(String id, Map<String, dynamic> map) {
-    // ADDED: Log Firestore data to catch null expiresAt
     if (kDebugMode) {
       print(
         'Parsing InvitationModel from Firestore: id=$id, expiresAt=${map['expiresAt']}',
@@ -82,7 +76,7 @@ class InvitationModel {
       ),
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
-          : DateTime.now(), // ADDED: Fallback for null createdAt
+          : DateTime.now(),
       acceptedAt: map['acceptedAt'] != null
           ? (map['acceptedAt'] as Timestamp).toDate()
           : null,
@@ -108,7 +102,6 @@ class InvitationModel {
     DateTime? expiresAt,
     String? token,
   }) {
-    // ADDED: Log when expiresAt is updated
     if (kDebugMode && expiresAt != null && expiresAt != this.expiresAt) {
       print('Updating expiresAt for invitation id=$id: new value=$expiresAt');
     }
