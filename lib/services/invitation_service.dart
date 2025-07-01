@@ -43,7 +43,6 @@ class InvitationService {
     required String invitedByName,
     required String inviterEmail,
   }) async {
-    // CHANGED: Moved emailLower declaration outside try block
     final emailLower = email.toLowerCase().trim();
     try {
       if (!_isValidEmail(email)) {
@@ -192,16 +191,40 @@ class InvitationService {
       if (kDebugMode) {
         print('Found ${invitations.length} invitations for email: $email');
       }
+      final validInvitations = <InvitationModel>[];
       for (final data in invitations) {
         if (kDebugMode) {
           print(
             'Invitation data: id=${data['id']}, expiresAt=${data['expiresAt']}',
           );
         }
+        // ADDED: Skip invalid pending invitations with null expiresAt
+        if (data['status'] == InvitationStatus.pending.value &&
+            data['expiresAt'] == null) {
+          if (kDebugMode) {
+            print(
+              'Skipping invalid pending invitation with id: ${data['id']} due to null expiresAt',
+            );
+          }
+          // ADDED: Delete invalid invitation
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            data['id'],
+          );
+          if (kDebugMode) {
+            print('Deleted invalid invitation ${data['id']}');
+          }
+          continue;
+        }
+        try {
+          validInvitations.add(InvitationModel.fromMap(data['id'], data));
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error parsing invitation with id: ${data['id']}: $e');
+          }
+        }
       }
-      return invitations
-          .map((data) => InvitationModel.fromMap(data['id'], data))
-          .toList();
+      return validInvitations;
     } catch (e) {
       if (kDebugMode) {
         print('Error fetching invitations for $email: $e');
@@ -229,6 +252,24 @@ class InvitationService {
       }
 
       final invitationData = invitations.first;
+      // ADDED: Check for invalid pending invitation
+      if (invitationData['status'] == InvitationStatus.pending.value &&
+          invitationData['expiresAt'] == null) {
+        if (kDebugMode) {
+          print(
+            'Invalid pending invitation with id: ${invitationData['id']} due to null expiresAt',
+          );
+        }
+        await _firestoreService.deleteDocument(
+          FirebaseConstants.invitationsCollection,
+          invitationData['id'],
+        );
+        if (kDebugMode) {
+          print('Deleted invalid invitation ${invitationData['id']}');
+        }
+        throw Exception('Invalid invitation: expiresAt is null');
+      }
+
       final invitation = InvitationModel.fromMap(
         invitationData['id'],
         invitationData,
@@ -313,6 +354,24 @@ class InvitationService {
       }
 
       final invitationData = invitations.first;
+      // ADDED: Check for invalid pending invitation
+      if (invitationData['status'] == InvitationStatus.pending.value &&
+          invitationData['expiresAt'] == null) {
+        if (kDebugMode) {
+          print(
+            'Invalid pending invitation with id: ${invitationData['id']} due to null expiresAt',
+          );
+        }
+        await _firestoreService.deleteDocument(
+          FirebaseConstants.invitationsCollection,
+          invitationData['id'],
+        );
+        if (kDebugMode) {
+          print('Deleted invalid invitation ${invitationData['id']}');
+        }
+        throw Exception('Invalid invitation: expiresAt is null');
+      }
+
       final invitation = InvitationModel.fromMap(
         invitationData['id'],
         invitationData,
