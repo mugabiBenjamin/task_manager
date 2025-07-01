@@ -1,22 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-enum InvitationStatus {
-  pending('pending', 'Pending'),
-  accepted('accepted', 'Accepted'),
-  declined('declined', 'Declined'),
-  expired('expired', 'Expired');
-
-  const InvitationStatus(this.value, this.displayName);
-  final String value;
-  final String displayName;
-
-  static InvitationStatus fromString(String value) {
-    return InvitationStatus.values.firstWhere(
-      (status) => status.value == value,
-      orElse: () => InvitationStatus.pending,
-    );
-  }
-}
+import '../core/enums/invitation_status.dart';
 
 class InvitationModel {
   final String id;
@@ -27,7 +10,7 @@ class InvitationModel {
   final DateTime createdAt;
   final DateTime? acceptedAt;
   final DateTime? declinedAt;
-  final DateTime? expiredAt;
+  final DateTime? expiresAt;
   final String? token;
 
   InvitationModel({
@@ -39,7 +22,7 @@ class InvitationModel {
     required this.createdAt,
     this.acceptedAt,
     this.declinedAt,
-    this.expiredAt,
+    this.expiresAt,
     this.token,
   });
 
@@ -52,7 +35,7 @@ class InvitationModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'acceptedAt': acceptedAt != null ? Timestamp.fromDate(acceptedAt!) : null,
       'declinedAt': declinedAt != null ? Timestamp.fromDate(declinedAt!) : null,
-      'expiredAt': expiredAt != null ? Timestamp.fromDate(expiredAt!) : null,
+      'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt!) : null,
       'token': token,
     };
   }
@@ -71,8 +54,8 @@ class InvitationModel {
       declinedAt: map['declinedAt'] != null
           ? (map['declinedAt'] as Timestamp).toDate()
           : null,
-      expiredAt: map['expiredAt'] != null
-          ? (map['expiredAt'] as Timestamp).toDate()
+      expiresAt: map['expiresAt'] != null
+          ? (map['expiresAt'] as Timestamp).toDate()
           : null,
       token: map['token'],
     );
@@ -87,7 +70,7 @@ class InvitationModel {
     DateTime? createdAt,
     DateTime? acceptedAt,
     DateTime? declinedAt,
-    DateTime? expiredAt,
+    DateTime? expiresAt,
     String? token,
   }) {
     return InvitationModel(
@@ -99,7 +82,7 @@ class InvitationModel {
       createdAt: createdAt ?? this.createdAt,
       acceptedAt: acceptedAt ?? this.acceptedAt,
       declinedAt: declinedAt ?? this.declinedAt,
-      expiredAt: expiredAt ?? this.expiredAt,
+      expiresAt: expiresAt ?? this.expiresAt,
       token: token ?? this.token,
     );
   }
