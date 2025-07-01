@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/app_routes.dart';
 
@@ -23,12 +24,11 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
         return Scaffold(
           appBar: AppBar(title: const Text('Accept Invitation')),
           body: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(AppConstants.defaultPadding),
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
-                  // CHANGED: Show error message if exists
                   if (authProvider.errorMessage != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -46,16 +46,19 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
                     controller: _displayNameController,
                     decoration: const InputDecoration(
                       labelText: 'Display Name',
+                      border: OutlineInputBorder(),
                     ),
                     validator: (value) =>
                         value?.isEmpty == true ? 'Required' : null,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppConstants.defaultPadding),
                   ElevatedButton(
-                    // CHANGED: Use AuthProvider loading state
                     onPressed: authProvider.isLoading
                         ? null
                         : _acceptInvitation,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(16),
+                    ),
                     child: authProvider.isLoading
                         ? const CircularProgressIndicator()
                         : const Text('Accept Invitation'),
@@ -80,11 +83,11 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // ADDED: Show loading dialog
       _showLoadingDialog();
 
       try {
-        final success = await authProvider.verifyInvitationToken(
+        // CHANGED: Use acceptInvitation instead of verifyInvitationToken
+        final success = await authProvider.acceptInvitation(
           widget.token,
           _displayNameController.text,
         );
@@ -93,7 +96,6 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
           Navigator.of(context).pop(); // Close loading dialog
 
           if (success) {
-            // ADDED: Show success message
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Invitation accepted successfully!'),
@@ -101,9 +103,13 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
               ),
             );
 
-            Navigator.of(context).pushReplacementNamed(AppRoutes.taskList);
+            // ADDED: Redirect to login if not authenticated
+            if (!authProvider.isAuthenticated) {
+              Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+            } else {
+              Navigator.of(context).pushReplacementNamed(AppRoutes.taskList);
+            }
           } else {
-            // ADDED: Show error if no specific error message
             if (authProvider.errorMessage == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -144,7 +150,6 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
     );
   }
 
-  // ADDED: Decline invitation handler
   void _declineInvitation() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -158,7 +163,7 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
             backgroundColor: Colors.orange,
           ),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
       }
     }
   }
