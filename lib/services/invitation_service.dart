@@ -43,6 +43,8 @@ class InvitationService {
     required String invitedByName,
     required String inviterEmail,
   }) async {
+    // CHANGED: Moved emailLower declaration outside try block
+    final emailLower = email.toLowerCase().trim();
     try {
       if (!_isValidEmail(email)) {
         throw Exception('Invalid email format');
@@ -55,7 +57,7 @@ class InvitationService {
       if (_userService != null) {
         final existingUsers = await _userService!.searchUsers(email);
         if (existingUsers.any(
-          (user) => user.email.toLowerCase() == email.toLowerCase(),
+          (user) => user.email.toLowerCase() == emailLower,
         )) {
           throw Exception('User with this email already exists');
         }
@@ -65,7 +67,6 @@ class InvitationService {
         }
       }
 
-      final emailLower = email.toLowerCase().trim();
       final existingInvitations = await getInvitationsByEmail(emailLower);
 
       for (final invitation in existingInvitations) {
@@ -75,7 +76,6 @@ class InvitationService {
           );
         }
         if (invitation.status == InvitationStatus.pending) {
-          // CHANGED: Delete invalid or expired pending invitations instead of updating
           if (invitation.expiresAt == null ||
               invitation.expiresAt!.isBefore(DateTime.now())) {
             await _firestoreService.deleteDocument(
@@ -241,7 +241,6 @@ class InvitationService {
             'Invitation expired for token: $token, expiresAt: ${invitation.expiresAt}',
           );
         }
-        // CHANGED: Delete invalid/expired invitation instead of updating
         await _firestoreService.deleteDocument(
           FirebaseConstants.invitationsCollection,
           invitation.id,
@@ -366,7 +365,6 @@ class InvitationService {
         if (kDebugMode) {
           print('Cleaning up expired invitation: ${invitationData['id']}');
         }
-        // CHANGED: Delete expired invitations instead of updating
         await _firestoreService.deleteDocument(
           FirebaseConstants.invitationsCollection,
           invitationData['id'],
