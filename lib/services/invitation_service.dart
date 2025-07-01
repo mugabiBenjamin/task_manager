@@ -51,6 +51,10 @@ class InvitationService {
         throw Exception('Invalid email format');
       }
 
+      if (kDebugMode) {
+        print('_userService is ${_userService != null ? "available" : "null"}');
+      }
+
       if (_userService != null) {
         final existingUsers = await _userService!.searchUsers(email);
         if (existingUsers.any(
@@ -58,14 +62,26 @@ class InvitationService {
         )) {
           throw Exception('User with this email already exists');
         }
+      } else {
+        if (kDebugMode) {
+          print('Warning: _userService is null, skipping user existence check');
+        }
       }
 
       final emailLower = email.toLowerCase().trim();
       final existingInvitations = await getInvitationsByEmail(emailLower);
 
       for (final invitation in existingInvitations) {
+        if (kDebugMode) {
+          print(
+            'Existing invitation found: id=${invitation.id}, '
+            'email=${invitation.email}, status=${invitation.status}, '
+            'expiresAt=${invitation.expiresAt}',
+          );
+        }
         if (invitation.status == InvitationStatus.pending) {
-          if (invitation.expiresAt!.isBefore(DateTime.now())) {
+          if (invitation.expiresAt == null ||
+              invitation.expiresAt!.isBefore(DateTime.now())) {
             // Mark as expired
             await _firestoreService.updateDocument(
               FirebaseConstants.invitationsCollection,
@@ -75,6 +91,9 @@ class InvitationService {
                 'expiresAt': Timestamp.fromDate(DateTime.now()),
               },
             );
+            if (kDebugMode) {
+              print('Marked invitation ${invitation.id} as expired');
+            }
           } else {
             if (kDebugMode) {
               print('Invitation already sent to $emailLower');
@@ -108,15 +127,35 @@ class InvitationService {
         token: token,
       );
 
+      // ADDED: Log invitation details before Firestore write
       if (kDebugMode) {
         print(
-          'Attempting to create invitation document for email: $emailLower',
+          'Creating invitation for $emailLower: expiresAt=${invitation.expiresAt}, token=$token',
         );
       }
+
       final invitationId = await _firestoreService.createDocument(
         FirebaseConstants.invitationsCollection,
         invitation.toMap(),
       );
+      // ADDED: Verify document creation
+      if (invitationId.isEmpty) {
+        throw Exception(
+          'Failed to create invitation document: empty ID returned',
+        );
+      }
+      // ADDED: Fetch and log the created document to verify data
+      final createdDoc = await _firestoreService.getDocument(
+        FirebaseConstants.invitationsCollection,
+        invitationId,
+      );
+      if (kDebugMode) {
+        print('Created invitation document: $createdDoc');
+      }
+      if (createdDoc == null || createdDoc['expiresAt'] == null) {
+        throw Exception('Failed to write expiresAt to Firestore');
+      }
+
       final verificationLink =
           'https://task-pages-opal.vercel.app/invitation.html?token=$token';
       if (kDebugMode) {
@@ -168,6 +207,13 @@ class InvitationService {
       if (kDebugMode) {
         print('Found ${invitations.length} invitations for email: $email');
       }
+      for (final data in invitations) {
+        if (kDebugMode) {
+          print(
+            'Invitation data: id=${data['id']}, expiresAt=${data['expiresAt']}',
+          );
+        }
+      }
       return invitations
           .map((data) => InvitationModel.fromMap(data['id'], data))
           .toList();
@@ -204,9 +250,12 @@ class InvitationService {
         invitationData,
       );
 
-      if (invitation.expiresAt!.isBefore(DateTime.now())) {
+      if (invitation.expiresAt == null ||
+          invitation.expiresAt!.isBefore(DateTime.now())) {
         if (kDebugMode) {
-          print('Invitation expired for token: $token');
+          print(
+            'Invitation expired for token: $token, expiresAt: ${invitation.expiresAt}',
+          );
         }
         await _firestoreService.updateDocument(
           FirebaseConstants.invitationsCollection,
@@ -231,6 +280,11 @@ class InvitationService {
         },
       );
 
+      if (kDebugMode) {
+        print(
+          '_userService for user creation is ${_userService != null ? "available" : "null"}',
+        );
+      }
       // Create user asynchronously
       if (_userService != null) {
         unawaited(
@@ -240,6 +294,10 @@ class InvitationService {
             displayName,
           ),
         );
+      } else {
+        if (kDebugMode) {
+          print('Warning: _userService is null, skipping user creation');
+        }
       }
 
       if (kDebugMode) {
@@ -370,6 +428,12 @@ class InvitationService {
     try {
       final List<Map<String, dynamic>> availableUsers = [];
 
+      // ADDED: Log userService availability
+      if (kDebugMode) {
+        print(
+          '_userService for user search is ${_userService != null ? "available" : "null"}',
+        );
+      }
       // Get registered users
       if (_userService != null) {
         final registeredUsers = await _userService!.searchUsers(searchQuery);
@@ -380,6 +444,12 @@ class InvitationService {
             'displayName': user.displayName,
             'isRegistered': true,
           });
+        }
+      } else {
+        if (kDebugMode) {
+          print(
+            'Warning: _userService is null, skipping registered users search',
+          );
         }
       }
 
