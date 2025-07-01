@@ -61,19 +61,31 @@ class InvitationModel {
       print(
         'Parsing InvitationModel from Firestore: id=$id, expiresAt=${map['expiresAt']}',
       );
-      if (map['expiresAt'] == null &&
-          map['status'] == InvitationStatus.pending.value) {
-        print('Warning: expiresAt is null for pending invitation with id: $id');
-      }
     }
+    final isPending =
+        map['status']?.toString() == InvitationStatus.pending.value;
+    final expiresAtValue = map['expiresAt'] != null
+        ? (map['expiresAt'] as Timestamp).toDate()
+        : (isPending
+              ? DateTime.now()
+              : null);
+    final statusValue = isPending && expiresAtValue == null
+        ? InvitationStatus
+              .expired
+        : InvitationStatus.fromString(map['status']?.toString() ?? 'pending');
+
+    if (kDebugMode && isPending && map['expiresAt'] == null) {
+      print(
+        'Warning: expiresAt is null for pending invitation with id: $id, setting default expiresAt to now',
+      );
+    }
+
     return InvitationModel(
       id: id,
       email: map['email']?.toString() ?? '',
       invitedBy: map['invitedBy']?.toString() ?? '',
       invitedByName: map['invitedByName']?.toString() ?? '',
-      status: InvitationStatus.fromString(
-        map['status']?.toString() ?? 'pending',
-      ),
+      status: statusValue,
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -83,9 +95,7 @@ class InvitationModel {
       declinedAt: map['declinedAt'] != null
           ? (map['declinedAt'] as Timestamp).toDate()
           : null,
-      expiresAt: map['expiresAt'] != null
-          ? (map['expiresAt'] as Timestamp).toDate()
-          : null,
+      expiresAt: expiresAtValue,
       token: map['token']?.toString(),
     );
   }
