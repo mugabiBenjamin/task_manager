@@ -101,6 +101,15 @@ class FirestoreService {
         if (updatedDoc == null) {
           throw Exception('Failed to verify set document: $documentId');
         }
+        if (updatedDoc['status'] == InvitationStatus.pending.value &&
+            updatedDoc['expiresAt'] == null) {
+          if (kDebugMode) {
+            print('Warning: expiresAt is null in set document: $documentId');
+          }
+          throw Exception(
+            'Failed to write expiresAt field for document: $documentId',
+          );
+        }
         if (kDebugMode) {
           print('Verified set document $documentId with data: $updatedDoc');
         }
@@ -184,6 +193,17 @@ class FirestoreService {
         final updatedDoc = await getDocument(collectionPath, documentId);
         if (updatedDoc == null) {
           throw Exception('Failed to verify updated document: $documentId');
+        }
+        if (updatedDoc['status'] == InvitationStatus.pending.value &&
+            updatedDoc['expiresAt'] == null) {
+          if (kDebugMode) {
+            print(
+              'Warning: expiresAt is null in updated document: $documentId',
+            );
+          }
+          throw Exception(
+            'Failed to write expiresAt field for document: $documentId',
+          );
         }
         if (kDebugMode) {
           print('Verified updated document $documentId with data: $updatedDoc');
@@ -337,6 +357,12 @@ class FirestoreService {
     } catch (e) {
       if (kDebugMode) {
         print('Failed to cleanup invalid invitations: $e');
+      }
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print('Permission denied during cleanup of invalid invitations: $e');
+        }
+        return; // Gracefully exit without throwing
       }
       throw Exception('Failed to cleanup invalid invitations: $e');
     }
