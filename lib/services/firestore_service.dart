@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../core/constants/firebase_constants.dart';
 
 class FirestoreService {
@@ -15,9 +16,45 @@ class FirestoreService {
     Map<String, dynamic> data,
   ) async {
     try {
+      if (kDebugMode) {
+        print('Creating document in $collectionPath with data: $data');
+      }
       final docRef = await _getCollection(collectionPath).add(data);
-      return docRef.id;
+      final docId = docRef.id;
+      final createdDoc = await getDocument(collectionPath, docId);
+      if (createdDoc == null) {
+        throw Exception('Failed to verify created document: $docId');
+      }
+      if (collectionPath == FirebaseConstants.invitationsCollection) {
+        if (createdDoc['expiresAt'] == null) {
+          if (kDebugMode) {
+            print('Warning: expiresAt is null in created document: $docId');
+          }
+          throw Exception(
+            'Failed to write expiresAt field for document: $docId',
+          );
+        }
+        if (kDebugMode) {
+          print(
+            'Verified document $docId with expiresAt: ${createdDoc['expiresAt']}',
+          );
+        }
+      }
+      return docId;
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when creating document in $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to create document in $collectionPath. Check Firestore security rules.',
+        );
+      }
+      if (kDebugMode) {
+        print('Failed to create document in $collectionPath: $e');
+      }
       throw Exception('Failed to create document in $collectionPath: $e');
     }
   }
@@ -29,8 +66,35 @@ class FirestoreService {
     Map<String, dynamic> data,
   ) async {
     try {
+      if (kDebugMode) {
+        print(
+          'Setting document $documentId in $collectionPath with data: $data',
+        );
+      }
       await _getCollection(collectionPath).doc(documentId).set(data);
+      if (collectionPath == FirebaseConstants.invitationsCollection) {
+        final updatedDoc = await getDocument(collectionPath, documentId);
+        if (updatedDoc == null) {
+          throw Exception('Failed to verify set document: $documentId');
+        }
+        if (kDebugMode) {
+          print('Verified set document $documentId with data: $updatedDoc');
+        }
+      }
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when setting document $documentId in $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to set document $documentId in $collectionPath. Check Firestore security rules.',
+        );
+      }
+      if (kDebugMode) {
+        print('Failed to set document $documentId in $collectionPath: $e');
+      }
       throw Exception(
         'Failed to set document $documentId in $collectionPath: $e',
       );
@@ -44,8 +108,23 @@ class FirestoreService {
   ) async {
     try {
       final doc = await _getCollection(collectionPath).doc(documentId).get();
+      if (kDebugMode) {
+        print(
+          'Retrieved document $documentId from $collectionPath: ${doc.exists ? doc.data() : null}',
+        );
+      }
       return doc.exists ? doc.data() as Map<String, dynamic> : null;
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when getting document $documentId from $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to get document $documentId from $collectionPath. Check Firestore security rules.',
+        );
+      }
       throw Exception(
         'Failed to get document $documentId from $collectionPath: $e',
       );
@@ -60,8 +139,35 @@ class FirestoreService {
   ) async {
     try {
       data[FirebaseConstants.updatedAtField] = Timestamp.now();
+      if (kDebugMode) {
+        print(
+          'Updating document $documentId in $collectionPath with data: $data',
+        );
+      }
       await _getCollection(collectionPath).doc(documentId).update(data);
+      if (collectionPath == FirebaseConstants.invitationsCollection) {
+        final updatedDoc = await getDocument(collectionPath, documentId);
+        if (updatedDoc == null) {
+          throw Exception('Failed to verify updated document: $documentId');
+        }
+        if (kDebugMode) {
+          print('Verified updated document $documentId with data: $updatedDoc');
+        }
+      }
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when updating document $documentId in $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to update document $documentId in $collectionPath. Check Firestore security rules.',
+        );
+      }
+      if (kDebugMode) {
+        print('Failed to update document $documentId in $collectionPath: $e');
+      }
       throw Exception(
         'Failed to update document $documentId in $collectionPath: $e',
       );
@@ -71,8 +177,21 @@ class FirestoreService {
   // Delete a document
   Future<void> deleteDocument(String collectionPath, String documentId) async {
     try {
+      if (kDebugMode) {
+        print('Deleting document $documentId from $collectionPath');
+      }
       await _getCollection(collectionPath).doc(documentId).delete();
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when deleting document $documentId from $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to delete document $documentId from $collectionPath. Check Firestore security rules.',
+        );
+      }
       throw Exception(
         'Failed to delete document $documentId from $collectionPath: $e',
       );
@@ -89,12 +208,29 @@ class FirestoreService {
       if (queryBuilder != null) {
         query = queryBuilder(query);
       }
-      return query.snapshots().map(
-        (snapshot) => snapshot.docs
+      if (kDebugMode) {
+        print('Streaming collection: $collectionPath');
+      }
+      return query.snapshots().map((snapshot) {
+        final docs = snapshot.docs
             .map((doc) => {...doc.data() as Map<String, dynamic>, 'id': doc.id})
-            .toList(),
-      );
+            .toList();
+        if (kDebugMode) {
+          print('Streamed ${docs.length} documents from $collectionPath');
+        }
+        return docs;
+      });
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when streaming collection $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to stream collection $collectionPath. Check Firestore security rules.',
+        );
+      }
       throw Exception('Failed to stream collection $collectionPath: $e');
     }
   }
@@ -105,15 +241,31 @@ class FirestoreService {
     String documentId,
   ) {
     try {
-      return _getCollection(collectionPath)
-          .doc(documentId)
-          .snapshots()
-          .map(
-            (doc) => doc.exists
-                ? {...doc.data() as Map<String, dynamic>, 'id': doc.id}
-                : null,
-          );
+      if (kDebugMode) {
+        print('Streaming document $documentId from $collectionPath');
+      }
+      return _getCollection(collectionPath).doc(documentId).snapshots().map((
+        doc,
+      ) {
+        final data = doc.exists
+            ? {...doc.data() as Map<String, dynamic>, 'id': doc.id}
+            : null;
+        if (kDebugMode) {
+          print('Streamed document $documentId: $data');
+        }
+        return data;
+      });
     } catch (e) {
+      if (e.toString().contains('permission-denied')) {
+        if (kDebugMode) {
+          print(
+            'Permission denied when streaming document $documentId from $collectionPath: $e',
+          );
+        }
+        throw Exception(
+          'Permission denied: Unable to stream document $documentId from $collectionPath. Check Firestore security rules.',
+        );
+      }
       throw Exception(
         'Failed to stream document $documentId from $collectionPath: $e',
       );
