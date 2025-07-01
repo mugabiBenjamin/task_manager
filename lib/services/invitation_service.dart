@@ -19,7 +19,6 @@ class InvitationService {
     _userService = userService;
   }
 
-  // Generate random token for invitation
   String _generateToken() {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -38,7 +37,6 @@ class InvitationService {
     ).hasMatch(email);
   }
 
-  // Send invitation email with EmailJS
   Future<bool> sendInvitation({
     required String email,
     required String invitedBy,
@@ -46,7 +44,6 @@ class InvitationService {
     required String inviterEmail,
   }) async {
     try {
-      // Validate email format
       if (!_isValidEmail(email)) {
         throw Exception('Invalid email format');
       }
@@ -74,25 +71,19 @@ class InvitationService {
       for (final invitation in existingInvitations) {
         if (kDebugMode) {
           print(
-            'Existing invitation found: id=${invitation.id}, '
-            'email=${invitation.email}, status=${invitation.status}, '
-            'expiresAt=${invitation.expiresAt}',
+            'Existing invitation: id=${invitation.id}, email=${invitation.email}, status=${invitation.status}, expiresAt=${invitation.expiresAt}',
           );
         }
         if (invitation.status == InvitationStatus.pending) {
+          // CHANGED: Delete invalid or expired pending invitations instead of updating
           if (invitation.expiresAt == null ||
               invitation.expiresAt!.isBefore(DateTime.now())) {
-            // Mark as expired
-            await _firestoreService.updateDocument(
+            await _firestoreService.deleteDocument(
               FirebaseConstants.invitationsCollection,
               invitation.id,
-              {
-                FirebaseConstants.statusField: InvitationStatus.expired.value,
-                'expiresAt': Timestamp.fromDate(DateTime.now()),
-              },
             );
             if (kDebugMode) {
-              print('Marked invitation ${invitation.id} as expired');
+              print('Deleted invalid/expired invitation ${invitation.id}');
             }
           } else {
             if (kDebugMode) {
@@ -102,7 +93,6 @@ class InvitationService {
           }
         } else if (invitation.status == InvitationStatus.declined ||
             invitation.status == InvitationStatus.expired) {
-          // Delete declined or expired invitation
           await _firestoreService.deleteDocument(
             FirebaseConstants.invitationsCollection,
             invitation.id,
@@ -117,7 +107,7 @@ class InvitationService {
 
       final token = _generateToken();
       final invitation = InvitationModel(
-        id: '', // ID will be set by Firestore
+        id: '',
         email: emailLower,
         invitedBy: invitedBy,
         invitedByName: invitedByName,
@@ -127,7 +117,6 @@ class InvitationService {
         token: token,
       );
 
-      // ADDED: Log invitation details before Firestore write
       if (kDebugMode) {
         print(
           'Creating invitation for $emailLower: expiresAt=${invitation.expiresAt}, token=$token',
@@ -138,13 +127,11 @@ class InvitationService {
         FirebaseConstants.invitationsCollection,
         invitation.toMap(),
       );
-      // ADDED: Verify document creation
       if (invitationId.isEmpty) {
         throw Exception(
           'Failed to create invitation document: empty ID returned',
         );
       }
-      // ADDED: Fetch and log the created document to verify data
       final createdDoc = await _firestoreService.getDocument(
         FirebaseConstants.invitationsCollection,
         invitationId,
@@ -185,14 +172,12 @@ class InvitationService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        var emailLower = email.toLowerCase().trim();
         print('Error sending invitation to $emailLower: $e');
       }
       throw Exception('$e');
     }
   }
 
-  // Get invitations by email
   Future<List<InvitationModel>> getInvitationsByEmail(String email) async {
     try {
       final invitations = await _firestoreService
@@ -225,7 +210,6 @@ class InvitationService {
     }
   }
 
-  // Accept invitation
   Future<bool> acceptInvitation(String token, String displayName) async {
     try {
       final invitations = await _firestoreService
@@ -257,14 +241,14 @@ class InvitationService {
             'Invitation expired for token: $token, expiresAt: ${invitation.expiresAt}',
           );
         }
-        await _firestoreService.updateDocument(
+        // CHANGED: Delete invalid/expired invitation instead of updating
+        await _firestoreService.deleteDocument(
           FirebaseConstants.invitationsCollection,
           invitation.id,
-          {
-            FirebaseConstants.statusField: InvitationStatus.expired.value,
-            'expiresAt': Timestamp.fromDate(DateTime.now()),
-          },
         );
+        if (kDebugMode) {
+          print('Deleted expired invitation ${invitation.id}');
+        }
         throw Exception('Invitation has expired');
       }
 
@@ -285,7 +269,6 @@ class InvitationService {
           '_userService for user creation is ${_userService != null ? "available" : "null"}',
         );
       }
-      // Create user asynchronously
       if (_userService != null) {
         unawaited(
           _userService!.getOrCreateUser(
@@ -312,7 +295,6 @@ class InvitationService {
     }
   }
 
-  // Decline invitation
   Future<bool> declineInvitation(String token) async {
     try {
       final invitations = await _firestoreService
@@ -361,7 +343,6 @@ class InvitationService {
     }
   }
 
-  // Cleanup expired invitations
   Future<void> cleanupExpiredInvitations() async {
     try {
       final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
@@ -385,14 +366,14 @@ class InvitationService {
         if (kDebugMode) {
           print('Cleaning up expired invitation: ${invitationData['id']}');
         }
-        await _firestoreService.updateDocument(
+        // CHANGED: Delete expired invitations instead of updating
+        await _firestoreService.deleteDocument(
           FirebaseConstants.invitationsCollection,
           invitationData['id'],
-          {
-            FirebaseConstants.statusField: InvitationStatus.expired.value,
-            'expiresAt': Timestamp.fromDate(DateTime.now()),
-          },
         );
+        if (kDebugMode) {
+          print('Deleted expired invitation ${invitationData['id']}');
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -401,7 +382,6 @@ class InvitationService {
     }
   }
 
-  // Get pending invitations sent by user
   Stream<List<InvitationModel>> getPendingInvitationsByUser(String userId) {
     return _firestoreService
         .streamCollection(
@@ -421,20 +401,17 @@ class InvitationService {
         );
   }
 
-  // Get users available for assignment
   Future<List<Map<String, dynamic>>> getUsersAvailableForAssignment(
     String searchQuery,
   ) async {
     try {
       final List<Map<String, dynamic>> availableUsers = [];
 
-      // ADDED: Log userService availability
       if (kDebugMode) {
         print(
           '_userService for user search is ${_userService != null ? "available" : "null"}',
         );
       }
-      // Get registered users
       if (_userService != null) {
         final registeredUsers = await _userService!.searchUsers(searchQuery);
         for (final user in registeredUsers) {
@@ -453,7 +430,6 @@ class InvitationService {
         }
       }
 
-      // Get accepted invitations
       if (searchQuery.isNotEmpty) {
         final acceptedInvitations = await _firestoreService
             .streamCollection(
