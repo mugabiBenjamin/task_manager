@@ -47,14 +47,13 @@ class AuthProvider extends ChangeNotifier {
       _user = user;
       if (user != null) {
         _resetFailedAttempts();
-        // Only load if not cached
         if (!_hasLoadedUserData) {
           loadUserData();
         }
         _navigateToTaskList();
       } else {
         _userModel = null;
-        _clearUserCache(); // Clear cache on sign out
+        _clearUserCache();
         _navigateToLogin();
       }
       notifyListeners();
@@ -97,7 +96,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> loadUserData() async {
     if (_hasLoadedUserData && _cachedUserModel != null) {
-      // Use cached data
       _userModel = _cachedUserModel;
       notifyListeners();
       return;
@@ -109,14 +107,12 @@ class AuthProvider extends ChangeNotifier {
         _cachedUserModel = _userModel;
         _hasLoadedUserData = true;
       } else if (_user != null) {
-        // Fallback to Firebase Auth user properties
         _userModel = UserModel.fromFirebaseUser(_user!);
         _cachedUserModel = _userModel;
       }
       notifyListeners();
     } catch (e) {
       if (_user != null) {
-        // Use Firebase Auth fallback on error
         _userModel = UserModel.fromFirebaseUser(_user!);
         _cachedUserModel = _userModel;
         notifyListeners();
@@ -171,13 +167,17 @@ class AuthProvider extends ChangeNotifier {
           return 'Authentication failed. Please try again.';
       }
     }
+    if (error.toString().contains('Invalid or expired invitation')) {
+      return 'The invitation link is invalid or has expired.';
+    }
+    if (error.toString().contains('Failed to accept invitation')) {
+      return 'Failed to accept invitation. Please try again.';
+    }
     return error.toString().replaceAll('Exception: ', '');
   }
 
-  // Retry logic with exponential backoff
   bool _canRetryNow() {
     if (_lastFailedAttempt == null) return true;
-
     final delay = Duration(seconds: _getRetryDelaySeconds());
     return DateTime.now().difference(_lastFailedAttempt!) >= delay;
   }
@@ -186,7 +186,7 @@ class AuthProvider extends ChangeNotifier {
     if (_failedAttempts <= 2) return 0;
     if (_failedAttempts <= 4) return 30;
     if (_failedAttempts <= 6) return 60;
-    return 300; // 5 minutes
+    return 300;
   }
 
   void _recordFailedAttempt() {
@@ -291,11 +291,9 @@ class AuthProvider extends ChangeNotifier {
     if (_user == null) return;
 
     try {
-      // Reload Firebase user to get fresh email verification status
       await _user!.reload();
-      _user = _authService.currentUser; // Get updated user instance
+      _user = _authService.currentUser;
 
-      // Update UserModel with fresh verification status
       if (_userModel != null) {
         _userModel = _userModel!.copyWith(
           isEmailVerified: _user!.emailVerified,
@@ -304,7 +302,6 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // Silent fail - don't show error for background refresh
       debugPrint('Failed to refresh email verification: $e');
     }
   }
@@ -315,7 +312,6 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _authService.sendEmailVerification();
       _startPeriodicVerificationCheck();
-
       return true;
     } catch (e) {
       _setError(_parseFirebaseError(e));
@@ -347,7 +343,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return success;
     } catch (e) {
-      _setError(_parseFirebaseError(e)); // CHANGED: proper error handling
+      _setError(_parseFirebaseError(e));
       _setLoading(false);
       return false;
     }
@@ -363,12 +359,22 @@ class AuthProvider extends ChangeNotifier {
         displayName,
       );
       if (success) {
-        // Refresh user data after successful invitation acceptance
+        debugPrint('Invitation accepted for token: $token');
         await loadUserData();
+        // ADDED: Navigate to sign-in or token-entry screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final context = navigatorKey?.currentContext;
+          if (context != null) {
+            Navigator.of(context).pushNamed(
+              AppRoutes.login,
+            ); // Navigate to login screen for manual sign-in
+          }
+        });
       }
       _setLoading(false);
       return success;
     } catch (e) {
+      debugPrint('Failed to accept invitation for token: $token: $e');
       _setError(_parseFirebaseError(e));
       _setLoading(false);
       return false;
@@ -398,8 +404,6 @@ class AuthProvider extends ChangeNotifier {
       timer,
     ) async {
       await refreshEmailVerificationStatus();
-
-      // Stop if verified or after 10 minutes
       if (_userModel?.isEmailVerified == true || timer.tick > 120) {
         timer.cancel();
       }
