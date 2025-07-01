@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/firebase_constants.dart';
+import '../core/enums/invitation_status.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -16,6 +17,17 @@ class FirestoreService {
     Map<String, dynamic> data,
   ) async {
     try {
+      if (collectionPath == FirebaseConstants.invitationsCollection) {
+        if (data['status'] == InvitationStatus.pending.value &&
+            data['expiresAt'] == null) {
+          if (kDebugMode) {
+            print(
+              'Error: expiresAt is null for pending invitation in $collectionPath',
+            );
+          }
+          throw Exception('expiresAt must be set for pending invitations');
+        }
+      }
       if (kDebugMode) {
         print('Creating document in $collectionPath with data: $data');
       }
@@ -26,7 +38,8 @@ class FirestoreService {
         throw Exception('Failed to verify created document: $docId');
       }
       if (collectionPath == FirebaseConstants.invitationsCollection) {
-        if (createdDoc['expiresAt'] == null) {
+        if (createdDoc['expiresAt'] == null &&
+            createdDoc['status'] == InvitationStatus.pending.value) {
           if (kDebugMode) {
             print('Warning: expiresAt is null in created document: $docId');
           }
@@ -66,6 +79,17 @@ class FirestoreService {
     Map<String, dynamic> data,
   ) async {
     try {
+      if (collectionPath == FirebaseConstants.invitationsCollection) {
+        if (data['status'] == InvitationStatus.pending.value &&
+            data['expiresAt'] == null) {
+          if (kDebugMode) {
+            print(
+              'Error: expiresAt is null for pending invitation $documentId in $collectionPath',
+            );
+          }
+          throw Exception('expiresAt must be set for pending invitations');
+        }
+      }
       if (kDebugMode) {
         print(
           'Setting document $documentId in $collectionPath with data: $data',
@@ -139,6 +163,17 @@ class FirestoreService {
   ) async {
     try {
       data[FirebaseConstants.updatedAtField] = Timestamp.now();
+      if (collectionPath == FirebaseConstants.invitationsCollection) {
+        if (data['status'] == InvitationStatus.pending.value &&
+            data['expiresAt'] == null) {
+          if (kDebugMode) {
+            print(
+              'Error: expiresAt is null for pending invitation $documentId in $collectionPath',
+            );
+          }
+          throw Exception('expiresAt must be set for pending invitations');
+        }
+      }
       if (kDebugMode) {
         print(
           'Updating document $documentId in $collectionPath with data: $data',
@@ -269,6 +304,41 @@ class FirestoreService {
       throw Exception(
         'Failed to stream document $documentId from $collectionPath: $e',
       );
+    }
+  }
+
+  Future<void> cleanupInvalidInvitations() async {
+    try {
+      final invalidInvitations = await _firestore
+          .collection(FirebaseConstants.invitationsCollection)
+          .where('status', isEqualTo: InvitationStatus.pending.value)
+          .where('expiresAt', isNull: true)
+          .get();
+
+      if (kDebugMode) {
+        print(
+          'Found ${invalidInvitations.docs.length} invalid pending invitations with null expiresAt',
+        );
+      }
+
+      for (final doc in invalidInvitations.docs) {
+        final docId = doc.id;
+        if (kDebugMode) {
+          print('Cleaning up invalid invitation: $docId');
+        }
+        await _firestore
+            .collection(FirebaseConstants.invitationsCollection)
+            .doc(docId)
+            .delete();
+        if (kDebugMode) {
+          print('Deleted invalid invitation: $docId');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to cleanup invalid invitations: $e');
+      }
+      throw Exception('Failed to cleanup invalid invitations: $e');
     }
   }
 }
