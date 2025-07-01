@@ -23,9 +23,10 @@ class EmailService {
   );
   static String get _baseUrl => const String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'https://task-manager-1763e.web.app',
+    defaultValue: 'https://task-pages-opal.vercel.app',
   );
   static const String _apiUrl = 'https://api.emailjs.com/api/v1.0/email/send';
+
   static bool _isValidEmail(String email) {
     return RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
@@ -38,6 +39,10 @@ class EmailService {
   }) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        // ADDED: Log request attempt
+        if (kDebugMode) {
+          print('Attempt $attempt: Sending email with body: $requestBody');
+        }
         final response = await http.post(
           Uri.parse(_apiUrl),
           headers: {
@@ -47,19 +52,27 @@ class EmailService {
           body: json.encode(requestBody),
         );
 
+        if (kDebugMode) {
+          print(
+            'EmailJS response: Status ${response.statusCode}, Body: ${response.body}',
+          );
+        }
         if (response.statusCode == 200) {
           return true;
         }
 
         if (attempt == maxRetries) {
           throw Exception(
-            'Failed after $maxRetries attempts: ${response.body}',
+            'Failed after $maxRetries attempts: Status ${response.statusCode}, ${response.body}',
           );
         }
 
         // Wait before retry with exponential backoff
         await Future.delayed(Duration(seconds: attempt * 2));
       } catch (e) {
+        if (kDebugMode) {
+          print('Attempt $attempt failed: $e');
+        }
         if (attempt == maxRetries) {
           rethrow;
         }
@@ -79,10 +92,14 @@ class EmailService {
       for (final assignee in assignees) {
         if (assignee['isRegistered'] == true &&
             assignee['emailNotifications'] == false) {
+          if (kDebugMode) {
+            print(
+              'Skipping email for ${assignee['email']} (notifications disabled)',
+            );
+          }
           continue;
         }
 
-        // ADDED: Email validation
         if (!_isValidEmail(assignee['email'])) {
           if (kDebugMode) {
             print('Invalid email format: ${assignee['email']}');
@@ -92,7 +109,7 @@ class EmailService {
 
         final templateParams = {
           'to_name': assignee['displayName'] ?? assignee['email'].split('@')[0],
-          'to_email': assignee['email'],
+          'to_email': assignee['email'].toLowerCase().trim(),
           'task_title': task.title,
           'task_description': task.description,
           'task_priority': task.priority.displayName,
@@ -103,9 +120,8 @@ class EmailService {
           'creator_name':
               creator['displayName'] ?? creator['email'].split('@')[0],
           'creator_email': creator['email'],
-          // CHANGED: Use deep link instead of web URL
-          'task_link': 'taskmanager://task?id=${task.id}',
-          'web_task_link': '$_baseUrl/task/${task.id}',
+          'task_link': '$_baseUrl/assignment.html?id=${task.id}',
+          'web_task_link': '$_baseUrl/assignment.html?id=${task.id}',
           'unsubscribe_link': assignee['isRegistered']
               ? '$_baseUrl/unsubscribe/${assignee['id']}'
               : '',
@@ -118,12 +134,11 @@ class EmailService {
           'template_params': templateParams,
         };
 
-        // CHANGED: Use retry mechanism
         final success = await _sendEmailWithRetry(requestBody: requestBody);
 
         if (!success) {
           if (kDebugMode) {
-            print('Failed to send email to ${assignee['email']} after retries');
+            print('Failed to send task email to ${assignee['email']}');
           }
         }
 
@@ -132,7 +147,7 @@ class EmailService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('Email notification failed: $e');
+        print('Task notification failed: $e');
       }
       return false;
     }
@@ -147,20 +162,19 @@ class EmailService {
     required String verificationLink,
   }) async {
     try {
-      // ADDED: Email validation
       if (!_isValidEmail(recipientEmail)) {
         throw Exception('Invalid email format');
       }
 
       final templateParams = {
         'to_name': recipientEmail.split('@')[0],
-        'to_email': recipientEmail,
+        'to_email': recipientEmail
+            .toLowerCase()
+            .trim(), // CHANGED: Ensure lowercase
         'inviter_name': inviterName,
         'inviter_email': inviterEmail,
-        // CHANGED: Use deep link for mobile app
-        'invitation_link': 'taskmanager://invite?token=$invitationToken',
-        'web_invitation_link':
-            '$_baseUrl/accept-invitation?token=$invitationToken',
+        'invitation_link': verificationLink, // Use provided Vercel URL
+        'web_invitation_link': verificationLink,
         'app_name': 'Task Manager',
       };
 
@@ -171,11 +185,22 @@ class EmailService {
         'template_params': templateParams,
       };
 
-      // CHANGED: Use retry mechanism
-      return await _sendEmailWithRetry(requestBody: requestBody);
+      if (kDebugMode) {
+        print(
+          'Sending invitation email to $recipientEmail with link: $verificationLink',
+        );
+      }
+      final success = await _sendEmailWithRetry(requestBody: requestBody);
+
+      if (kDebugMode) {
+        print(
+          'Invitation email to $recipientEmail: ${success ? 'success' : 'failed'}',
+        );
+      }
+      return success;
     } catch (e) {
       if (kDebugMode) {
-        print('Invitation email failed: $e');
+        print('Invitation email failed for $recipientEmail: $e');
       }
       return false;
     }
