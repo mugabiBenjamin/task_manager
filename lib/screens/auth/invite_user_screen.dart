@@ -53,12 +53,37 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
           invitedByName: currentUser.displayName,
           invitedBy: currentUser.id,
         );
-        if (mounted) Navigator.pop(context, true);
-      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invitation sent successfully!'),
+              backgroundColor: AppConstants
+                  .successColor, // ADDED: Use success color for positive feedback
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage;
+          if (e.toString().contains('Invalid email format')) {
+            errorMessage = 'Please enter a valid email address.';
+          } else if (e.toString().contains(
+            'User with this email already exists',
+          )) {
+            errorMessage = 'This user is already registered.';
+          } else if (e.toString().contains('Failed to send invitation email')) {
+            errorMessage =
+                'Failed to send email. Please check EmailJS settings.';
+          } else if (e.toString().contains('permission-denied')) {
+            errorMessage =
+                'Permission denied. Please check your account settings.';
+          } else {
+            errorMessage = 'An error occurred: ${e.toString()}';
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to send invitation: $e'),
+              content: Text(errorMessage),
               backgroundColor: AppConstants.errorColor,
             ),
           );
