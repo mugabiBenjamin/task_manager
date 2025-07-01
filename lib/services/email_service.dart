@@ -107,6 +107,7 @@ class EmailService {
           continue;
         }
 
+        // CHANGED: Added task_id to templateParams
         final templateParams = {
           'to_name': assignee['displayName'] ?? assignee['email'].split('@')[0],
           'to_email': assignee['email'].toLowerCase().trim(),
@@ -125,6 +126,7 @@ class EmailService {
           'unsubscribe_link': assignee['isRegistered']
               ? '$_baseUrl/unsubscribe/${assignee['id']}'
               : '',
+          'task_id': task.id,
         };
 
         final requestBody = {
