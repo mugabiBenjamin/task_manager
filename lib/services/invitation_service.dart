@@ -45,7 +45,7 @@ class InvitationService {
     required String inviterEmail,
   }) async {
     try {
-      // ADDED: Email format validation
+      // Validate email format
       if (!_isValidEmail(email)) {
         throw Exception('Invalid email format');
       }
@@ -69,7 +69,7 @@ class InvitationService {
       final token = _generateToken();
       final invitation = InvitationModel(
         id: '',
-        email: email.toLowerCase().trim(),
+        email: email.toLowerCase().trim(), // Ensure lowercase email
         invitedBy: invitedBy,
         invitedByName: invitedByName,
         status: InvitationStatus.pending,
@@ -77,13 +77,18 @@ class InvitationService {
         token: token,
       );
 
+      if (kDebugMode) {
+        print('Attempting to create invitation document for email: $email');
+      }
       final invitationId = await _firestoreService.createDocument(
         FirebaseConstants.invitationsCollection,
         invitation.toMap(),
       );
-
-      // CHANGED: Updated verification link to use deep link
-      final verificationLink = 'taskmanager://invite?token=$token';
+      final verificationLink =
+          'https://task-pages-opal.vercel.app/invitation.html?token=$token';
+      if (kDebugMode) {
+        print('Sending invitation email to: $email with token: $token');
+      }
       final emailSent = await EmailService.sendInvitationEmail(
         recipientEmail: email,
         inviterName: invitedByName,
@@ -93,22 +98,31 @@ class InvitationService {
       );
 
       if (!emailSent) {
+        if (kDebugMode) {
+          print('Email sending failed, deleting invitation: $invitationId');
+        }
         await _firestoreService.deleteDocument(
           FirebaseConstants.invitationsCollection,
           invitationId,
         );
         throw Exception('Failed to send invitation email');
       }
-
+      if (kDebugMode) {
+        print('Invitation sent successfully to: $email');
+      }
       return true;
     } catch (e) {
-      throw Exception('Failed to send invitation: $e');
+      if (kDebugMode) {
+        print('Error sending invitation to $email: $e');
+      }
+      throw Exception('$e');
     }
   }
 
   // Get invitations by email
   Future<List<InvitationModel>> getInvitationsByEmail(String email) async {
     try {
+      // CHANGED: Ensure lowercase email in query
       final invitations = await _firestoreService
           .streamCollection(
             FirebaseConstants.invitationsCollection,
@@ -118,11 +132,16 @@ class InvitationService {
             ),
           )
           .first;
-
+      if (kDebugMode) {
+        print('Found ${invitations.length} invitations for email: $email');
+      }
       return invitations
           .map((data) => InvitationModel.fromMap(data['id'], data))
           .toList();
     } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching invitations for $email: $e');
+      }
       throw Exception('Failed to get invitations: $e');
     }
   }
@@ -159,7 +178,9 @@ class InvitationService {
         throw Exception('Invitation has expired');
       }
 
-      // CHANGED: Update invitation status first
+      if (kDebugMode) {
+        print('Updating invitation status to accepted for token: $token');
+      }
       await _firestoreService.updateDocument(
         FirebaseConstants.invitationsCollection,
         invitation.id,
@@ -169,7 +190,7 @@ class InvitationService {
         },
       );
 
-      // CHANGED: Create user asynchronously to avoid blocking
+      // Create user asynchronously
       if (_userService != null) {
         unawaited(
           _userService!.getOrCreateUser(
@@ -180,8 +201,16 @@ class InvitationService {
         );
       }
 
+      // ADDED: Log successful acceptance
+      if (kDebugMode) {
+        print('Invitation accepted successfully for token: $token');
+      }
       return true;
     } catch (e) {
+      // CHANGED: Log detailed error
+      if (kDebugMode) {
+        print('Error accepting invitation for token: $token: $e');
+      }
       throw Exception('Failed to accept invitation: $e');
     }
   }
@@ -210,6 +239,10 @@ class InvitationService {
         invitationData,
       );
 
+      // ADDED: Log decline attempt
+      if (kDebugMode) {
+        print('Declining invitation for token: $token');
+      }
       await _firestoreService.updateDocument(
         FirebaseConstants.invitationsCollection,
         invitation.id,
@@ -219,8 +252,14 @@ class InvitationService {
         },
       );
 
+      if (kDebugMode) {
+        print('Invitation declined successfully for token: $token');
+      }
       return true;
     } catch (e) {
+      if (kDebugMode) {
+        print('Error declining invitation for token: $token: $e');
+      }
       throw Exception('Failed to decline invitation: $e');
     }
   }
@@ -245,6 +284,9 @@ class InvitationService {
           .first;
 
       for (final invitationData in expiredInvitations) {
+        if (kDebugMode) {
+          print('Cleaning up expired invitation: ${invitationData['id']}');
+        }
         await _firestoreService.updateDocument(
           FirebaseConstants.invitationsCollection,
           invitationData['id'],
@@ -342,8 +384,16 @@ class InvitationService {
         }
       }
 
+      if (kDebugMode) {
+        print(
+          'Found ${availableUsers.length} users for assignment query: $searchQuery',
+        );
+      }
       return availableUsers;
     } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching available users: $e');
+      }
       throw Exception('Failed to get available users: $e');
     }
   }
