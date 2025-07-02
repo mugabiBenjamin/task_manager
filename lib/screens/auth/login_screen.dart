@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // ADDED: Handle token if provided
+      // Handle token if provided
       if (_showTokenField && _tokenController.text.isNotEmpty) {
         final success = await authProvider.acceptInvitation(
           _tokenController.text.trim(),
@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     final authProvider = context.read<AuthProvider>();
-    // ADDED: Support token with Google sign-in
+    // Support token with Google sign-in
     if (_showTokenField && _tokenController.text.isNotEmpty) {
       await authProvider.signInWithGoogle(
         invitationToken: _tokenController.text.trim(),
@@ -178,6 +178,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 32),
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppConstants.primaryColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Received an invitation email? Click "Have an Invitation Token?" below and paste the token from the email.',
+                          style: TextStyle(color: AppConstants.primaryColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
                     return TextFormField(
@@ -289,16 +313,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // ADDED: Token input field
                 if (_showTokenField)
                   Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
                       return TextFormField(
                         controller: _tokenController,
                         decoration: const InputDecoration(
-                          labelText: 'Invitation Token (Optional)',
+                          labelText: 'Invitation Token',
                           prefixIcon: Icon(Icons.vpn_key),
                           border: OutlineInputBorder(),
+                          helperText:
+                              'Paste the token from your invitation email',
+                          helperStyle: TextStyle(
+                            color: AppConstants.primaryColor,
+                          ),
                         ),
                         validator: (value) {
                           if (value != null && value.isNotEmpty) {
@@ -312,7 +340,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                 const SizedBox(height: 16),
-                // ADDED: Toggle for token field
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -323,7 +350,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     _showTokenField
                         ? 'Hide Token Field'
                         : 'Have an Invitation Token?',
-                    style: const TextStyle(color: AppConstants.primaryColor),
+                    style: const TextStyle(
+                      color: AppConstants.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
