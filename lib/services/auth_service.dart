@@ -1,17 +1,37 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../core/constants/firebase_constants.dart';
 import '../models/user_model.dart';
 import 'user_service.dart';
 import 'invitation_service.dart';
+import 'firestore_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final UserService _userService = UserService();
-  final InvitationService _invitationService = InvitationService();
+  final FirestoreService _firestoreService =
+      FirestoreService(); // ADDED: FirestoreService instance
+  late final UserService _userService;
+  late final InvitationService _invitationService;
+
+  // ADDED: Constructor to initialize services
+  AuthService() {
+    _initializeServices();
+  }
+
+  // ADDED: Initialize services with required dependencies
+  void _initializeServices() {
+    _invitationService = InvitationService(
+      firestoreService: _firestoreService,
+      userService: null, // Will be set after UserService initialization
+    );
+    _userService = UserService(
+      firestoreService: _firestoreService,
+      invitationService: _invitationService,
+    );
+    _invitationService.setUserService(
+      _userService,
+    ); // Resolve circular dependency
+  }
 
   User? get currentUser => _auth.currentUser;
 
@@ -131,15 +151,7 @@ class AuthService {
     try {
       if (_auth.currentUser == null) return null;
 
-      final doc = await _firestore
-          .collection(FirebaseConstants.usersCollection)
-          .doc(_auth.currentUser!.uid)
-          .get();
-
-      if (doc.exists) {
-        return UserModel.fromFirestore(doc);
-      }
-      return null;
+      return await _userService.getUserById(_auth.currentUser!.uid);
     } catch (e) {
       throw Exception('Failed to get user data: $e');
     }
@@ -148,23 +160,11 @@ class AuthService {
   // Create user document in Firestore
   Future<void> _createUserDocument(User user, String displayName) async {
     try {
-      final userDoc = _firestore
-          .collection(FirebaseConstants.usersCollection)
-          .doc(user.uid);
-
-      final docSnapshot = await userDoc.get();
-      if (!docSnapshot.exists) {
-        final userModel = UserModel(
-          id: user.uid,
-          email: user.email ?? '',
-          displayName: displayName,
-          createdAt: DateTime.now(),
-          isEmailVerified: user.emailVerified,
-          emailNotifications: true,
-        );
-
-        await userDoc.set(userModel.toMap());
-      }
+      await _userService.getOrCreateUser(
+        user.uid,
+        user.email ?? '',
+        displayName,
+      );
     } catch (e) {
       throw Exception('Failed to create user document: $e');
     }
