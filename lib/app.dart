@@ -33,11 +33,11 @@ class _AppState extends State<App> {
   @override
   void initState() {
     super.initState();
+    AuthProvider.setNavigatorKey(App.navigatorKey);
   }
 
   @override
   Widget build(BuildContext context) {
-    AuthProvider.setNavigatorKey(App.navigatorKey);
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
