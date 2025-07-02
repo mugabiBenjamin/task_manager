@@ -1,10 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/user_service.dart';
+import '../services/firestore_service.dart'; // ADDED: Import FirestoreService
+import '../services/invitation_service.dart'; // ADDED: Import InvitationService
 import 'auth_provider.dart';
 
 class UserProvider extends ChangeNotifier {
-  final UserService _userService = UserService();
+  // CHANGED: Added FirestoreService and InvitationService instances
+  final FirestoreService _firestoreService = FirestoreService();
+  late final InvitationService _invitationService;
+  late final UserService _userService;
 
   List<UserModel> _users = [];
   bool _isLoading = false;
@@ -17,6 +22,26 @@ class UserProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   List<Map<String, dynamic>> _availableUsers = [];
   List<Map<String, dynamic>> get availableUsers => _availableUsers;
+
+  // ADDED: Constructor to initialize services
+  UserProvider() {
+    _initializeServices();
+  }
+
+  // ADDED: Initialize services with required dependencies
+  void _initializeServices() {
+    _invitationService = InvitationService(
+      firestoreService: _firestoreService,
+      userService: null, // Will be set after UserService initialization
+    );
+    _userService = UserService(
+      firestoreService: _firestoreService,
+      invitationService: _invitationService,
+    );
+    _invitationService.setUserService(
+      _userService,
+    ); // Resolve circular dependency
+  }
 
   // Update auth provider dependency
   void updateAuthProvider(AuthProvider authProvider) {
@@ -90,7 +115,7 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // ADDED: Search available users specifically for task assignment
+  // Search available users specifically for task assignment
   Future<void> searchAvailableUsersForTask(String query) async {
     if (!_isUserAuthenticated()) return;
 
@@ -104,25 +129,12 @@ class UserProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Use existing searchUsers functionality
-      final users = await _userService.searchUsers(query);
-
-      // CHANGED: Convert UserModel list to Map format expected by UI
-      _availableUsers = users
-          .map(
-            (user) => {
-              'id': user.id,
-              'email': user.email,
-              'displayName': user.displayName,
-              'isRegistered': true,
-            },
-          )
-          .toList();
-
+      // CHANGED: Use getAvailableUsersForTask instead of searchUsers
+      _availableUsers = await _userService.getAvailableUsersForTask(query);
       _setLoading(false);
       notifyListeners();
     } catch (e) {
-      _setError('Failed to search users: $e');
+      _setError('Failed to search available users: $e');
       _setLoading(false);
     }
   }
