@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/firebase_constants.dart';
 import '../core/enums/invitation_status.dart';
@@ -329,6 +330,16 @@ class FirestoreService {
 
   Future<void> cleanupInvalidInvitations() async {
     try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId == null) {
+        if (kDebugMode) {
+          print(
+            'No authenticated user found for cleanup of invalid invitations',
+          );
+        }
+        return;
+      }
+
       final invalidInvitations = await _firestore
           .collection(FirebaseConstants.invitationsCollection)
           .where('status', isEqualTo: InvitationStatus.pending.value)
@@ -343,6 +354,16 @@ class FirestoreService {
 
       for (final doc in invalidInvitations.docs) {
         final docId = doc.id;
+        final invitedBy = doc.data()['invitedBy'];
+        if (invitedBy != currentUserId) {
+          if (kDebugMode) {
+            print(
+              'Skipping deletion of invitation $docId: Current user $currentUserId does not match invitedBy $invitedBy',
+            );
+          }
+          continue;
+        }
+
         if (kDebugMode) {
           print('Cleaning up invalid invitation: $docId');
         }
