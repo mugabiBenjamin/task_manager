@@ -34,16 +34,23 @@ class AppRoutes {
       taskList: (context) => const TaskListScreen(),
       createTask: (context) => const CreateTaskScreen(),
       taskDetails: (context) {
-        final args = ModalRoute.of(context)!.settings.arguments as String;
-        return TaskDetailsScreen(taskId: args);
+        final args = ModalRoute.of(context)!.settings.arguments;
+        if (args is String && args.isNotEmpty) {
+          return TaskDetailsScreen(taskId: args);
+        }
+        return const TaskListScreen();
       },
       taskAssignment: (context) {
-        final args =
-            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-        return TaskAssignmentScreen(
-          taskId: args['taskId'] as String,
-          currentAssignees: args['currentAssignees'] as List<String>,
-        );
+        final args = ModalRoute.of(context)!.settings.arguments;
+        if (args is Map<String, dynamic> &&
+            args['taskId'] is String &&
+            args['currentAssignees'] is List<String>) {
+          return TaskAssignmentScreen(
+            taskId: args['taskId'] as String,
+            currentAssignees: args['currentAssignees'] as List<String>,
+          );
+        }
+        return const TaskListScreen();
       },
       userProfile: (context) => const UserProfileScreen(),
       starredTasks: (context) => const StarredTasksScreen(),
@@ -51,9 +58,15 @@ class AppRoutes {
       settings: (context) => const SettingsScreen(),
       inviteUser: (context) => const InviteUserScreen(),
       acceptInvitation: (context) {
-  final token = ModalRoute.of(context)!.settings.arguments as String;
-  return AcceptInvitationScreen(token: token);
-},
+        final args = ModalRoute.of(context)!.settings.arguments;
+        if (args is String && args.isNotEmpty) {
+          return AcceptInvitationScreen(token: args);
+        }
+        return const LoginScreen();
+      },
+      help: (context) => const Scaffold(
+            body: Center(child: Text('Help screen not implemented')),
+          ),
     };
   }
 }
