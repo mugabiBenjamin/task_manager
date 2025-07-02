@@ -10,10 +10,14 @@ import 'email_service.dart';
 import 'user_service.dart';
 
 class InvitationService {
-  final FirestoreService _firestoreService = FirestoreService();
+  final FirestoreService _firestoreService;
   UserService? _userService;
 
-  InvitationService({UserService? userService}) : _userService = userService;
+  InvitationService({
+    required FirestoreService firestoreService,
+    UserService? userService,
+  }) : _firestoreService = firestoreService,
+       _userService = userService;
 
   void setUserService(UserService userService) {
     _userService = userService;
@@ -49,21 +53,16 @@ class InvitationService {
         throw Exception('Invalid email format');
       }
 
-      if (kDebugMode) {
-        print('_userService is ${_userService != null ? "available" : "null"}');
+      if (_userService == null) {
+        if (kDebugMode) {
+          print('Error: _userService is null, cannot proceed with invitation');
+        }
+        throw Exception('UserService not initialized');
       }
 
-      if (_userService != null) {
-        final existingUsers = await _userService!.searchUsers(email);
-        if (existingUsers.any(
-          (user) => user.email.toLowerCase() == emailLower,
-        )) {
-          throw Exception('User with this email already exists');
-        }
-      } else {
-        if (kDebugMode) {
-          print('Warning: _userService is null, skipping user existence check');
-        }
+      final existingUsers = await _userService!.searchUsers(email);
+      if (existingUsers.any((user) => user.email.toLowerCase() == emailLower)) {
+        throw Exception('User with this email already exists');
       }
 
       final existingInvitations = await getInvitationsByEmail(emailLower);
@@ -77,12 +76,19 @@ class InvitationService {
         if (invitation.status == InvitationStatus.pending) {
           if (invitation.expiresAt == null ||
               invitation.expiresAt!.isBefore(DateTime.now())) {
-            await _firestoreService.deleteDocument(
-              FirebaseConstants.invitationsCollection,
-              invitation.id,
-            );
-            if (kDebugMode) {
-              print('Deleted invalid/expired invitation ${invitation.id}');
+            try {
+              await _firestoreService.deleteDocument(
+                FirebaseConstants.invitationsCollection,
+                invitation.id,
+              );
+              if (kDebugMode) {
+                print('Deleted invalid/expired invitation ${invitation.id}');
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Failed to delete invitation ${invitation.id}: $e');
+              }
+              continue; // Skip to next invitation on permission error
             }
           } else {
             if (kDebugMode) {
@@ -92,14 +98,22 @@ class InvitationService {
           }
         } else if (invitation.status == InvitationStatus.declined ||
             invitation.status == InvitationStatus.expired) {
-          await _firestoreService.deleteDocument(
-            FirebaseConstants.invitationsCollection,
-            invitation.id,
-          );
-          if (kDebugMode) {
-            print(
-              'Deleted declined/expired invitation for $emailLower: ${invitation.id}',
+          // CHANGED: Added try-catch to handle permission errors gracefully
+          try {
+            await _firestoreService.deleteDocument(
+              FirebaseConstants.invitationsCollection,
+              invitation.id,
             );
+            if (kDebugMode) {
+              print(
+                'Deleted declined/expired invitation for $emailLower: ${invitation.id}',
+              );
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Failed to delete invitation ${invitation.id}: $e');
+            }
+            continue; // Skip to next invitation on permission error
           }
         }
       }
@@ -112,6 +126,7 @@ class InvitationService {
         invitedByName: invitedByName,
         status: InvitationStatus.pending,
         createdAt: DateTime.now(),
+        // CHANGED: Ensured expiresAt is always set
         expiresAt: DateTime.now().add(const Duration(days: 7)),
         token: token,
       );
@@ -120,6 +135,34 @@ class InvitationService {
         print(
           'Creating invitation for $emailLower: expiresAt=${invitation.expiresAt}, token=$token',
         );
+      }
+
+      try {
+        await _firestoreService.getDocument(
+          FirebaseConstants.invitationsCollection,
+          'test-existence',
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print(
+            'Invitations collection may not exist, creating dummy document: $e',
+          );
+        }
+        await _firestoreService.setDocument(
+          FirebaseConstants.invitationsCollection,
+          'init-dummy',
+          {
+            'status': InvitationStatus.expired.value,
+            'email': 'dummy@taskmanager.com',
+            'invitedBy': invitedBy,
+            'createdAt': Timestamp.now(),
+            'expiresAt': Timestamp.now(),
+            'token': 'dummy-token',
+          },
+        );
+        if (kDebugMode) {
+          print('Created dummy document to initialize invitations collection');
+        }
       }
 
       final invitationId = await _firestoreService.createDocument(
@@ -159,10 +202,18 @@ class InvitationService {
         if (kDebugMode) {
           print('Email sending failed, deleting invitation: $invitationId');
         }
-        await _firestoreService.deleteDocument(
-          FirebaseConstants.invitationsCollection,
-          invitationId,
-        );
+        try {
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            invitationId,
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              'Failed to delete invitation $invitationId after email failure: $e',
+            );
+          }
+        }
         throw Exception('Failed to send invitation email');
       }
       if (kDebugMode) {
@@ -198,7 +249,6 @@ class InvitationService {
             'Invitation data: id=${data['id']}, expiresAt=${data['expiresAt']}',
           );
         }
-        // ADDED: Skip invalid pending invitations with null expiresAt
         if (data['status'] == InvitationStatus.pending.value &&
             data['expiresAt'] == null) {
           if (kDebugMode) {
@@ -206,13 +256,19 @@ class InvitationService {
               'Skipping invalid pending invitation with id: ${data['id']} due to null expiresAt',
             );
           }
-          // ADDED: Delete invalid invitation
-          await _firestoreService.deleteDocument(
-            FirebaseConstants.invitationsCollection,
-            data['id'],
-          );
-          if (kDebugMode) {
-            print('Deleted invalid invitation ${data['id']}');
+          try {
+            await _firestoreService.deleteDocument(
+              FirebaseConstants.invitationsCollection,
+              data['id'],
+            );
+            if (kDebugMode) {
+              print('Deleted invalid invitation ${data['id']}');
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Failed to delete invalid invitation ${data['id']}: $e');
+            }
+            continue; // Skip to next invitation on permission error
           }
           continue;
         }
@@ -252,7 +308,6 @@ class InvitationService {
       }
 
       final invitationData = invitations.first;
-      // ADDED: Check for invalid pending invitation
       if (invitationData['status'] == InvitationStatus.pending.value &&
           invitationData['expiresAt'] == null) {
         if (kDebugMode) {
@@ -260,12 +315,21 @@ class InvitationService {
             'Invalid pending invitation with id: ${invitationData['id']} due to null expiresAt',
           );
         }
-        await _firestoreService.deleteDocument(
-          FirebaseConstants.invitationsCollection,
-          invitationData['id'],
-        );
-        if (kDebugMode) {
-          print('Deleted invalid invitation ${invitationData['id']}');
+        // CHANGED: Added try-catch to handle permission errors gracefully
+        try {
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            invitationData['id'],
+          );
+          if (kDebugMode) {
+            print('Deleted invalid invitation ${invitationData['id']}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              'Failed to delete invalid invitation ${invitationData['id']}: $e',
+            );
+          }
         }
         throw Exception('Invalid invitation: expiresAt is null');
       }
@@ -282,12 +346,18 @@ class InvitationService {
             'Invitation expired for token: $token, expiresAt: ${invitation.expiresAt}',
           );
         }
-        await _firestoreService.deleteDocument(
-          FirebaseConstants.invitationsCollection,
-          invitation.id,
-        );
-        if (kDebugMode) {
-          print('Deleted expired invitation ${invitation.id}');
+        try {
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            invitation.id,
+          );
+          if (kDebugMode) {
+            print('Deleted expired invitation ${invitation.id}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Failed to delete expired invitation ${invitation.id}: $e');
+          }
         }
         throw Exception('Invitation has expired');
       }
@@ -304,24 +374,27 @@ class InvitationService {
         },
       );
 
+      if (_userService == null) {
+        if (kDebugMode) {
+          print(
+            'Error: _userService is null, cannot create user for invitation',
+          );
+        }
+        throw Exception('UserService not initialized');
+      }
+
       if (kDebugMode) {
         print(
           '_userService for user creation is ${_userService != null ? "available" : "null"}',
         );
       }
-      if (_userService != null) {
-        unawaited(
-          _userService!.getOrCreateUser(
-            invitation.email,
-            invitation.email,
-            displayName,
-          ),
-        );
-      } else {
-        if (kDebugMode) {
-          print('Warning: _userService is null, skipping user creation');
-        }
-      }
+      unawaited(
+        _userService!.getOrCreateUser(
+          invitation.email,
+          invitation.email,
+          displayName,
+        ),
+      );
 
       if (kDebugMode) {
         print('Invitation accepted successfully for token: $token');
@@ -354,7 +427,6 @@ class InvitationService {
       }
 
       final invitationData = invitations.first;
-      // ADDED: Check for invalid pending invitation
       if (invitationData['status'] == InvitationStatus.pending.value &&
           invitationData['expiresAt'] == null) {
         if (kDebugMode) {
@@ -362,12 +434,20 @@ class InvitationService {
             'Invalid pending invitation with id: ${invitationData['id']} due to null expiresAt',
           );
         }
-        await _firestoreService.deleteDocument(
-          FirebaseConstants.invitationsCollection,
-          invitationData['id'],
-        );
-        if (kDebugMode) {
-          print('Deleted invalid invitation ${invitationData['id']}');
+        try {
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            invitationData['id'],
+          );
+          if (kDebugMode) {
+            print('Deleted invalid invitation ${invitationData['id']}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              'Failed to delete invalid invitation ${invitationData['id']}: $e',
+            );
+          }
         }
         throw Exception('Invalid invitation: expiresAt is null');
       }
@@ -424,12 +504,21 @@ class InvitationService {
         if (kDebugMode) {
           print('Cleaning up expired invitation: ${invitationData['id']}');
         }
-        await _firestoreService.deleteDocument(
-          FirebaseConstants.invitationsCollection,
-          invitationData['id'],
-        );
-        if (kDebugMode) {
-          print('Deleted expired invitation ${invitationData['id']}');
+        try {
+          await _firestoreService.deleteDocument(
+            FirebaseConstants.invitationsCollection,
+            invitationData['id'],
+          );
+          if (kDebugMode) {
+            print('Deleted expired invitation ${invitationData['id']}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              'Failed to delete expired invitation ${invitationData['id']}: $e',
+            );
+          }
+          continue; // Skip to next invitation on permission error
         }
       }
     } catch (e) {
@@ -464,27 +553,21 @@ class InvitationService {
     try {
       final List<Map<String, dynamic>> availableUsers = [];
 
-      if (kDebugMode) {
-        print(
-          '_userService for user search is ${_userService != null ? "available" : "null"}',
-        );
-      }
-      if (_userService != null) {
-        final registeredUsers = await _userService!.searchUsers(searchQuery);
-        for (final user in registeredUsers) {
-          availableUsers.add({
-            'id': user.id,
-            'email': user.email,
-            'displayName': user.displayName,
-            'isRegistered': true,
-          });
-        }
-      } else {
+      if (_userService == null) {
         if (kDebugMode) {
-          print(
-            'Warning: _userService is null, skipping registered users search',
-          );
+          print('Error: _userService is null, cannot search for users');
         }
+        throw Exception('UserService not initialized');
+      }
+
+      final registeredUsers = await _userService!.searchUsers(searchQuery);
+      for (final user in registeredUsers) {
+        availableUsers.add({
+          'id': user.id,
+          'email': user.email,
+          'displayName': user.displayName,
+          'isRegistered': true,
+        });
       }
 
       if (searchQuery.isNotEmpty) {
