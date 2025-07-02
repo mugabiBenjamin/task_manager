@@ -5,17 +5,15 @@ import 'firestore_service.dart';
 import 'invitation_service.dart';
 
 class UserService {
-  final FirestoreService _firestoreService = FirestoreService();
+  final FirestoreService _firestoreService;
+  final InvitationService _invitationService;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  InvitationService? _invitationService;
-
-  UserService({InvitationService? invitationService})
-    : _invitationService = invitationService;
-
-  void setInvitationService(InvitationService invitationService) {
-    _invitationService = invitationService;
-  }
+  UserService({
+    required FirestoreService firestoreService,
+    required InvitationService invitationService,
+  }) : _firestoreService = firestoreService,
+       _invitationService = invitationService;
 
   // Get user by ID
   Future<UserModel?> getUserById(String userId) async {
@@ -68,9 +66,10 @@ class UserService {
   ) async {
     try {
       final List<Map<String, dynamic>> availableUsers = [];
+      final normalizedQuery = searchQuery.toLowerCase().trim();
 
       // Get registered users
-      final registeredUsers = await searchUsers(searchQuery);
+      final registeredUsers = await searchUsers(normalizedQuery);
       for (final user in registeredUsers) {
         availableUsers.add({
           'id': user.id,
@@ -80,14 +79,13 @@ class UserService {
         });
       }
 
-      // Add null check before using _invitationService
-      if (_invitationService != null) {
-        final acceptedUsers = await _invitationService!
-            .getUsersAvailableForAssignment(searchQuery);
-        for (final user in acceptedUsers) {
-          if (!availableUsers.any((u) => u['email'] == user['email'])) {
-            availableUsers.add(user);
-          }
+      final acceptedUsers = await _invitationService
+          .getUsersAvailableForAssignment(normalizedQuery);
+      for (final user in acceptedUsers) {
+        if (!availableUsers.any(
+          (u) => u['email'].toLowerCase() == user['email'].toLowerCase(),
+        )) {
+          availableUsers.add(user);
         }
       }
 
@@ -125,17 +123,18 @@ class UserService {
   // Search users by email or display name
   Future<List<UserModel>> searchUsers(String query) async {
     try {
+      final normalizedQuery = query.toLowerCase().trim();
       final snapshot = await _firestoreService
           .streamCollection(
             FirebaseConstants.usersCollection,
             queryBuilder: (q) => q
                 .where(
                   FirebaseConstants.emailField,
-                  isGreaterThanOrEqualTo: query,
+                  isGreaterThanOrEqualTo: normalizedQuery,
                 )
                 .where(
                   FirebaseConstants.emailField,
-                  isLessThanOrEqualTo: '$query\uf8ff',
+                  isLessThanOrEqualTo: '$normalizedQuery\uf8ff',
                 )
                 .limit(10),
           )
@@ -155,8 +154,9 @@ class UserService {
     String displayName,
   ) async {
     try {
+      final normalizedEmail = email.toLowerCase().trim();
       final userData = {
-        'email': email,
+        'email': normalizedEmail,
         'displayName': displayName,
         'createdAt': Timestamp.now(),
         'isEmailVerified': false,
@@ -181,11 +181,15 @@ class UserService {
     String displayName,
   ) async {
     try {
+      final normalizedEmail = email.toLowerCase().trim();
       final existingUser = await getUserById(userId);
       if (existingUser != null) {
+        if (existingUser.email.toLowerCase() != normalizedEmail) {
+          await updateUser(userId, {'email': normalizedEmail});
+        }
         return existingUser;
       }
-      return await createUserDocument(userId, email, displayName);
+      return await createUserDocument(userId, normalizedEmail, displayName);
     } catch (e) {
       throw Exception('Failed to get or create user: $e');
     }
