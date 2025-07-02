@@ -44,6 +44,19 @@
       .button:hover {
         background-color: #3267d6;
       }
+      .instructions {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 20px 0;
+      }
+      .instructions ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .instructions li {
+        margin-bottom: 10px;
+      }
       .footer {
         text-align: center;
         font-size: 14px;
@@ -63,27 +76,37 @@
           You've been invited by {{inviter_name}} ({{inviter_email}}) to join
           {{app_name}}.
         </p>
-        <!-- CHANGED: Use web_invitation_link instead of invitation_link -->
         <p>
-          <a href="{{web_invitation_link}}" class="button">Accept Invitation</a>
+          <a href="{{web_invitation_link}}" class="button">View Invitation</a>
         </p>
-        <!-- ADDED: Plain-text link for email clients -->
         <p>
-          Click here to accept:
+          Click here to view:
           <a href="{{web_invitation_link}}">{{web_invitation_link}}</a>
         </p>
-        <!-- ADDED: Instructions for testers -->
-        <p>
-          Open the Task Manager app on your test device, sign in with
-          {{to_email}}, and enter the token from the link above if prompted.
-        </p>
+        <div class="instructions">
+          <p><strong>How to Accept Your Invitation:</strong></p>
+          <ol>
+            <li>
+              Click the "View Invitation" button above or the link to open a
+              page displaying your invitation token.
+            </li>
+            <li>Copy the token shown on the page.</li>
+            <li>Open the Task Manager app on your test device.</li>
+            <li>Go to the Login screen and sign in with {{to_email}}.</li>
+            <li>
+              Click "Have an Invitation Token?" and paste the copied token into
+              the field.
+            </li>
+            <li>Submit to accept the invitation and join the app.</li>
+          </ol>
+        </div>
         <p>
           If you have any questions, feel free to contact {{inviter_name}} at
           {{inviter_email}}.
         </p>
       </div>
       <div class="footer">
-        <p>&copy; 2025 Task Manager. All rights reserved.</p>
+        <p>© 2025 Task Manager. All rights reserved.</p>
       </div>
     </div>
   </body>
