@@ -29,6 +29,30 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
               key: _formKey,
               child: Column(
                 children: [
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: AppConstants.primaryColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Enter a display name to accept your invitation. You may need to sign in with the invited email afterward.',
+                            style: TextStyle(color: AppConstants.primaryColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   if (authProvider.errorMessage != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -47,6 +71,8 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Display Name',
                       border: OutlineInputBorder(),
+                      helperText: 'Choose a name to display in the app',
+                      helperStyle: TextStyle(color: AppConstants.primaryColor),
                     ),
                     validator: (value) =>
                         value?.isEmpty == true ? 'Required' : null,
@@ -86,7 +112,6 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
       _showLoadingDialog();
 
       try {
-        // CHANGED: Use acceptInvitation instead of verifyInvitationToken
         final success = await authProvider.acceptInvitation(
           widget.token,
           _displayNameController.text,
@@ -103,8 +128,17 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
               ),
             );
 
-            // ADDED: Redirect to login if not authenticated
             if (!authProvider.isAuthenticated) {
+              // CHANGED: Enhanced fallback message for unauthenticated users
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'Please sign in with the invited email to continue.',
+                  ),
+                  backgroundColor: Colors.blue,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
               Navigator.of(context).pushReplacementNamed(AppRoutes.login);
             } else {
               Navigator.of(context).pushReplacementNamed(AppRoutes.taskList);
@@ -161,6 +195,13 @@ class _AcceptInvitationScreenState extends State<AcceptInvitationScreen> {
           const SnackBar(
             content: Text('Invitation declined'),
             backgroundColor: Colors.orange,
+          ),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Redirecting to login screen.'),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 3),
           ),
         );
         Navigator.of(context).pushReplacementNamed(AppRoutes.login);
