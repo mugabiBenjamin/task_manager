@@ -4,6 +4,8 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
+import '../../services/firestore_service.dart'; // ADDED: Import FirestoreService
+import '../../services/invitation_service.dart'; // ADDED: Import InvitationService
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'dart:async';
@@ -22,11 +24,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isEditing = false;
   bool _isLoading = false;
   String? _errorMessage;
-  final UserService _userService = UserService();
+  late final UserService
+  _userService; // CHANGED: Made late to initialize in initState
 
   @override
   void initState() {
     super.initState();
+    // ADDED: Initialize UserService with required dependencies
+    _userService = UserService(
+      firestoreService: FirestoreService(),
+      invitationService: InvitationService(
+        firestoreService: FirestoreService(),
+        userService:
+            null, // Optional, as it’s not required for UserService operations here
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
 
