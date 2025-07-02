@@ -50,6 +50,19 @@
         border-radius: 5px;
         margin: 20px 0;
       }
+      .instructions {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 20px 0;
+      }
+      .instructions ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .instructions li {
+        margin-bottom: 10px;
+      }
       .footer {
         text-align: center;
         font-size: 14px;
@@ -74,18 +87,27 @@
           <p><strong>Description:</strong> {{task_description}}</p>
           <p><strong>Priority:</strong> {{task_priority}}</p>
           <p><strong>Due Date:</strong> {{task_due_date}}</p>
-          <!-- ADDED: Display task ID -->
           <p><strong>Task ID:</strong> {{task_id}}</p>
         </div>
-        <!-- CHANGED: Use web_task_link instead of task_link -->
-        <p><a href="{{web_task_link}}" class="button">View Task Details</a></p>
-        <!-- ADDED: Plain-text link for email clients -->
+        <p><a href="{{web_task_link}}" class="button">View Task ID</a></p>
         <p>View task: <a href="{{web_task_link}}">{{web_task_link}}</a></p>
-        <!-- ADDED: Instructions for testers -->
-        <p>
-          Open the Task Manager app on your test device and navigate to Task ID:
-          {{task_id}} to view details.
-        </p>
+        <div class="instructions">
+          <p><strong>How to View Your Task:</strong></p>
+          <ol>
+            <li>
+              Click the "View Task ID" button above or the link to open a page
+              displaying your Task ID.
+            </li>
+            <li>Copy the Task ID shown on the page ({{task_id}}).</li>
+            <li>Open the Task Manager app on your test device.</li>
+            <li>Sign in if not already logged in.</li>
+            <li>Go to the Task List screen and click the search icon.</li>
+            <li>
+              Paste the Task ID into the search field and submit to view the
+              task details.
+            </li>
+          </ol>
+        </div>
         <p>
           If you have any questions, contact {{creator_name}} at
           {{creator_email}}.
@@ -93,7 +115,7 @@
         <p><a href="{{unsubscribe_link}}">Unsubscribe from notifications</a></p>
       </div>
       <div class="footer">
-        <p>&copy; 2025 Task Manager. All rights reserved.</p>
+        <p>© 2025 Task Manager. All rights reserved.</p>
       </div>
     </div>
   </body>
