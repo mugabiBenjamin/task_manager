@@ -24,8 +24,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _passwordHasError = false;
   bool _confirmPasswordHasError = false;
   bool _displayNameHasError = false;
-  // ignore: unused_field
-  bool _isTokenVerified = false;
   bool _isTokenInvalid = false;
 
   @override
@@ -53,7 +51,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
     if (mounted) {
       setState(() {
-        _isTokenVerified = isValid;
         _isTokenInvalid = !isValid;
       });
       if (isValid) {
