@@ -27,6 +27,8 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get shouldShowRetryDelay => _failedAttempts >= 3;
   AuthService get authService => _authService;
+  InvitationService get invitationService => _invitationService;
+  UserService get userService => _userService;
 
   UserModel? _cachedUserModel;
   bool _hasLoadedUserData = false;
