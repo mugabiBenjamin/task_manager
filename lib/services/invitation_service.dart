@@ -488,7 +488,7 @@ class InvitationService {
 
   Future<void> cleanupExpiredInvitations() async {
     try {
-      final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
+      final cutoffDate = DateTime.now();
 
       final expiredInvitations = await _firestoreService
           .streamCollection(
@@ -499,7 +499,7 @@ class InvitationService {
                   isEqualTo: InvitationStatus.pending.value,
                 )
                 .where(
-                  FirebaseConstants.createdAtField,
+                  FirebaseConstants.expiresAtField,
                   isLessThan: Timestamp.fromDate(cutoffDate),
                 ),
           )
