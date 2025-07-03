@@ -83,7 +83,8 @@ class _AppState extends State<App> {
           AppRoutes.labels: (context) => const LabelsScreen(),
           AppRoutes.inviteUser: (context) => const InviteUserScreen(),
           AppRoutes.acceptInvitation: (context) {
-            final token = ModalRoute.of(context)!.settings.arguments as String;
+            final arguments = ModalRoute.of(context)?.settings.arguments;
+            final token = arguments is String ? arguments : '';
             return AcceptInvitationScreen(token: token);
           },
         },
