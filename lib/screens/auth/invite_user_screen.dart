@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/task_priority.dart';
 import '../../core/enums/task_status.dart';
@@ -20,6 +21,21 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+
+  // ADDED: UUID generator instance
+  static const _uuid = Uuid();
+
+  // ADDED: Welcome task template constants
+  static const _welcomeTaskTemplate = {
+    'title': 'Welcome to Task Manager!',
+    'description':
+        'You have been invited to collaborate on tasks. This is your welcome assignment.',
+    'priority': TaskPriority.medium,
+    'status': TaskStatus.notStarted,
+    'dueDays': 3,
+    'labels': ['welcome'],
+    'isStarred': false,
+  };
 
   @override
   void dispose() {
@@ -145,7 +161,7 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
     }
   }
 
-  // ADDED: New function to send assignment email for invited users
+  // UPDATED: Improved function to send assignment email for invited users
   Future<void> _sendAssignmentEmail(String email, String displayName) async {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -153,21 +169,21 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
 
       if (currentUser == null) return;
 
-      // Create a welcome task for the invited user
       final welcomeTask = TaskModel(
-        id: 'welcome-${DateTime.now().millisecondsSinceEpoch}',
-        title: 'Welcome to Task Manager!',
-        description:
-            'You have been invited to collaborate on tasks. This is your welcome assignment.',
-        priority: TaskPriority.medium,
-        status: TaskStatus.notStarted,
+        id: _uuid.v4(), 
+        title: _welcomeTaskTemplate['title'] as String,
+        description: _welcomeTaskTemplate['description'] as String,
+        priority: _welcomeTaskTemplate['priority'] as TaskPriority,
+        status: _welcomeTaskTemplate['status'] as TaskStatus,
         createdBy: currentUser.id,
-        assignedTo: [email], // Use email as identifier for non-registered users
+        assignedTo: [email],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
-        dueDate: DateTime.now().add(const Duration(days: 3)),
-        labels: ['welcome'],
-        isStarred: false,
+        dueDate: DateTime.now().add(
+          Duration(days: _welcomeTaskTemplate['dueDays'] as int),
+        ),
+        labels: List<String>.from(_welcomeTaskTemplate['labels'] as List),
+        isStarred: _welcomeTaskTemplate['isStarred'] as bool,
       );
 
       // Prepare assignee data
@@ -195,7 +211,9 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
       );
 
       if (kDebugMode) {
-        print('Assignment email sent to: $email');
+        print(
+          'Assignment email sent to: $email with task ID: ${welcomeTask.id}',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
