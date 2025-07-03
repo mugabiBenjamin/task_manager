@@ -27,14 +27,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isTokenInvalid = false;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.invitationToken != null) {
-      _verifyInvitationToken();
-    }
-  }
-
-  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -43,30 +35,47 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  Future<void> _verifyInvitationToken() async {
-    final authProvider = context.read<AuthProvider>();
-    final isValid = await authProvider.verifyInvitationToken(
-      widget.invitationToken!,
-      _displayNameController.text.trim(),
-    );
-    if (mounted) {
-      setState(() {
-        _isTokenInvalid = !isValid;
-      });
-      if (isValid) {
+  Future<bool> _verifyInvitationToken() async {
+    if (widget.invitationToken == null) return true;
+    
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final isValid = await authProvider.verifyInvitationToken(
+        widget.invitationToken!,
+        _displayNameController.text.trim(),
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isTokenInvalid = !isValid;
+        });
+        
+        if (!isValid) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid or expired invitation token'),
+              backgroundColor: AppConstants.errorColor,
+            ),
+          );
+        }
+      }
+      
+      return isValid;
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTokenInvalid = true;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invitation token verified successfully'),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid or expired invitation token'),
+          SnackBar(
+            content: Text('Error verifying invitation: ${e.toString()}'),
             backgroundColor: AppConstants.errorColor,
           ),
         );
       }
+      
+      return false;
     }
   }
 
@@ -410,6 +419,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _signUp() async {
     if (_formKey.currentState!.validate()) {
+      // Verify invitation token before proceeding with signup
+      final tokenValid = await _verifyInvitationToken();
+      if (!tokenValid) {
+        return;
+      }
+
       final authProvider = context.read<AuthProvider>();
       final success = await authProvider.signUp(
         email: _emailController.text.trim(),
@@ -425,6 +440,12 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _signUpWithGoogle() async {
+    // Verify invitation token before proceeding with Google signup
+    final tokenValid = await _verifyInvitationToken();
+    if (!tokenValid) {
+      return;
+    }
+
     final authProvider = context.read<AuthProvider>();
     await authProvider.signInWithGoogle(
       invitationToken: widget.invitationToken,
