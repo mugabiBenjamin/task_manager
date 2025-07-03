@@ -388,13 +388,18 @@ class InvitationService {
           '_userService for user creation is ${_userService != null ? "available" : "null"}',
         );
       }
-      unawaited(
-        _userService!.getOrCreateUser(
+      try {
+        await _userService!.getOrCreateUser(
           invitation.email,
           invitation.email,
           displayName,
-        ),
-      );
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('Failed to create user for accepted invitation: $e');
+        }
+        // Continue anyway as invitation is already accepted
+      }
 
       if (kDebugMode) {
         print('Invitation accepted successfully for token: $token');
