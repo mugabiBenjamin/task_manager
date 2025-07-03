@@ -6,14 +6,18 @@ import 'invitation_service.dart';
 
 class UserService {
   final FirestoreService _firestoreService;
-  final InvitationService _invitationService;
+  InvitationService _invitationService;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   UserService({
     required FirestoreService firestoreService,
-    required InvitationService invitationService,
+    InvitationService? invitationService,
   }) : _firestoreService = firestoreService,
-       _invitationService = invitationService;
+       _invitationService = invitationService!;
+
+  void setInvitationService(InvitationService invitationService) {
+    _invitationService = invitationService;
+  }
 
   // Get user by ID
   Future<UserModel?> getUserById(String userId) async {
