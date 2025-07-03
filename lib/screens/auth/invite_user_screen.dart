@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/invitation_service.dart';
+import '../../services/firestore_service.dart';
 import '../../widgets/common/custom_button.dart';
-import '../../services/auth_service.dart';
+import '../../providers/auth_provider.dart';
 
 class InviteUserScreen extends StatefulWidget {
   const InviteUserScreen({super.key});
@@ -27,8 +29,8 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      final authService = AuthService();
-      final currentUser = await authService.getCurrentUserData();
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = await authProvider.authService.getCurrentUserData();
 
       if (currentUser == null ||
           currentUser.email.isEmpty ||
@@ -55,7 +57,12 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
         );
       }
 
-      final invitationService = InvitationService();
+      final firestoreService = FirestoreService();
+      final invitationService = InvitationService(
+        firestoreService: firestoreService,
+        userService: null,
+      );
+
       try {
         await invitationService.sendInvitation(
           email: _emailController.text.trim(),
