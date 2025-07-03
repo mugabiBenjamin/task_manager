@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
-import '../../services/invitation_service.dart';
-import '../../services/firestore_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../providers/auth_provider.dart';
 
@@ -57,11 +55,7 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
         );
       }
 
-      final firestoreService = FirestoreService();
-      final invitationService = InvitationService(
-        firestoreService: firestoreService,
-        userService: null,
-      );
+      final invitationService = authProvider.invitationService;
 
       try {
         await invitationService.sendInvitation(
