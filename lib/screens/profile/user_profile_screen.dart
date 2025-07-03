@@ -4,8 +4,8 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
-import '../../services/firestore_service.dart'; // ADDED: Import FirestoreService
-import '../../services/invitation_service.dart'; // ADDED: Import InvitationService
+import '../../services/firestore_service.dart';
+import '../../services/invitation_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'dart:async';
@@ -30,29 +30,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // ADDED: Initialize UserService with required dependencies
-    _userService = UserService(
-      firestoreService: FirestoreService(),
-      invitationService: InvitationService(
-        firestoreService: FirestoreService(),
-        userService:
-            null, // Optional, as it’s not required for UserService operations here
-      ),
+    final firestoreService = FirestoreService();
+    final invitationService = InvitationService(
+      firestoreService: firestoreService,
+      userService: null,
     );
+
+    _userService = UserService(
+      firestoreService: firestoreService,
+      invitationService: invitationService,
+    );
+
+    invitationService.setUserService(_userService);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
 
-      // Use cached data or Firebase Auth fallback immediately
       if (authProvider.userModel != null) {
         _displayNameController.text = authProvider.userModel!.displayName;
         _emailController.text = authProvider.userModel!.email;
       } else if (authProvider.user != null) {
-        // Fallback to Firebase Auth user
         _displayNameController.text = authProvider.user!.displayName ?? '';
         _emailController.text = authProvider.user!.email ?? '';
       }
 
-      // Try to load fresh data in background
       _loadUserDataInBackground();
     });
   }
