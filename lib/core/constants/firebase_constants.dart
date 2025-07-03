@@ -24,4 +24,5 @@ class FirebaseConstants {
   static const String isStarredField = 'isStarred';
   static const String invitationsCollection = 'invitations';
   static const String invitedByField = 'invitedBy';
+  static const String expiresAtField = 'expiresAt';
 }
