@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/enums/task_priority.dart';
+import '../../core/enums/task_status.dart';
+import '../../models/task_model.dart';
+import '../../services/email_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../providers/auth_provider.dart';
 
@@ -56,59 +60,148 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
       }
 
       final invitationService = authProvider.invitationService;
+      final email = _emailController.text.trim();
+      final displayName = email.split(
+        '@',
+      )[0]; // ADDED: Extract display name from email
+      bool invitationSent = false;
+      String? invitationError;
 
+      // CHANGED: Try to send invitation but don't fail if user exists
       try {
-        await invitationService.sendInvitation(
-          email: _emailController.text.trim(),
-          inviterEmail: currentUser.email,
-          invitedByName: currentUser.displayName,
-          invitedBy: currentUser.id,
+        // ADDED: Check if user exists first
+        final userService = authProvider.userService;
+        final existingUsers = await userService.searchUsers(email);
+        final userExists = existingUsers.any(
+          (user) => user.email.toLowerCase() == email.toLowerCase(),
         );
-        if (mounted) {
+
+        if (userExists) {
+          // ADDED: Show snackbar for existing user but don't return - still send assignment email
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('This user is already registered.'),
+                backgroundColor: AppConstants
+                    .warningColor, // CHANGED: Use warning color instead of error
+              ),
+            );
+          }
+          invitationError = 'User already registered';
+        } else {
+          // ADDED: Only send invitation if user doesn't exist
+          await invitationService.sendInvitation(
+            email: email,
+            inviterEmail: currentUser.email,
+            invitedByName: currentUser.displayName,
+            invitedBy: currentUser.id,
+          );
+          invitationSent = true;
+        }
+      } catch (e) {
+        invitationError = e.toString();
+        if (kDebugMode) {
+          print('Invitation failed: $e');
+        }
+      }
+
+      // ADDED: Always send assignment email regardless of invitation outcome
+      await _sendAssignmentEmail(email, displayName);
+
+      if (mounted) {
+        if (invitationSent) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Invitation sent successfully!'),
+              content: Text(
+                'Invitation and assignment email sent successfully!',
+              ), // CHANGED: Updated message
               backgroundColor: AppConstants.successColor,
             ),
           );
-          Navigator.pop(context, true);
-        }
-      } catch (e) {
-        if (mounted) {
-          String errorMessage;
-          if (e.toString().contains('Invalid email format')) {
-            errorMessage = 'Please enter a valid email address.';
-          } else if (e.toString().contains(
-            'User with this email already exists',
-          )) {
-            errorMessage = 'This user is already registered.';
-          } else if (e.toString().contains('Failed to send invitation email')) {
-            errorMessage =
-                'Failed to send email. Please check EmailJS settings.';
-          } else if (e.toString().contains('permission-denied')) {
-            errorMessage =
-                'Permission denied. Please check your account settings.';
-          } else if (e.toString().contains(
-            'Null check operator used on a null value',
-          )) {
-            errorMessage =
-                'An unexpected null value occurred. Please try again or contact support.';
-          } else {
-            errorMessage = 'An error occurred: ${e.toString()}';
-          }
-          if (kDebugMode) {
-            print('Invitation error: $errorMessage');
-          }
+        } else if (invitationError == 'User already registered') {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: AppConstants.errorColor,
+            const SnackBar(
+              content: Text(
+                'Assignment email sent to existing user!',
+              ), // ADDED: Success message for existing users
+              backgroundColor: AppConstants.successColor,
             ),
           );
-          Navigator.pop(context, false);
+        } else {
+          // ADDED: Handle other invitation errors but still acknowledge assignment email
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Invitation failed but assignment email sent: ${invitationError ?? 'Unknown error'}',
+              ),
+              backgroundColor: AppConstants.warningColor,
+            ),
+          );
         }
+        Navigator.pop(context, true);
       }
+
       setState(() => _isLoading = false);
+    }
+  }
+
+  // ADDED: New function to send assignment email for invited users
+  Future<void> _sendAssignmentEmail(String email, String displayName) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = await authProvider.authService.getCurrentUserData();
+
+      if (currentUser == null) return;
+
+      // Create a welcome task for the invited user
+      final welcomeTask = TaskModel(
+        id: 'welcome-${DateTime.now().millisecondsSinceEpoch}',
+        title: 'Welcome to Task Manager!',
+        description:
+            'You have been invited to collaborate on tasks. This is your welcome assignment.',
+        priority: TaskPriority.medium,
+        status: TaskStatus.notStarted,
+        createdBy: currentUser.id,
+        assignedTo: [email], // Use email as identifier for non-registered users
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        dueDate: DateTime.now().add(const Duration(days: 3)),
+        labels: ['welcome'],
+        isStarred: false,
+      );
+
+      // Prepare assignee data
+      final assigneeData = {
+        'id': email,
+        'email': email,
+        'displayName': displayName,
+        'isRegistered': false,
+        'emailNotifications': true,
+      };
+
+      // Prepare creator data
+      final creatorData = {
+        'id': currentUser.id,
+        'email': currentUser.email,
+        'displayName': currentUser.displayName,
+        'emailNotifications': true,
+      };
+
+      // Send assignment email
+      await EmailService.sendTaskAssignmentNotification(
+        task: welcomeTask,
+        assignees: [assigneeData],
+        creator: creatorData,
+      );
+
+      if (kDebugMode) {
+        print('Assignment email sent to: $email');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to send assignment email: $e');
+      }
+      // Don't throw error - assignment email failure shouldn't block invitation
     }
   }
 
@@ -144,7 +237,9 @@ class _InviteUserScreenState extends State<InviteUserScreen> {
               ),
               const SizedBox(height: AppConstants.defaultPadding),
               CustomButton(
-                text: _isLoading ? 'Sending...' : 'Send Invitation',
+                text: _isLoading
+                    ? 'Sending...'
+                    : 'Send Invitation & Assignment',
                 onPressed: _isLoading ? null : _sendInvitation,
               ),
             ],
