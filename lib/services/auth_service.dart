@@ -8,30 +8,15 @@ import 'firestore_service.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirestoreService _firestoreService =
-      FirestoreService(); // ADDED: FirestoreService instance
-  late final UserService _userService;
-  late final InvitationService _invitationService;
+  final UserService _userService;
+  final InvitationService _invitationService;
 
-  // ADDED: Constructor to initialize services
-  AuthService() {
-    _initializeServices();
-  }
-
-  // ADDED: Initialize services with required dependencies
-  void _initializeServices() {
-    _invitationService = InvitationService(
-      firestoreService: _firestoreService,
-      userService: null, // Will be set after UserService initialization
-    );
-    _userService = UserService(
-      firestoreService: _firestoreService,
-      invitationService: _invitationService,
-    );
-    _invitationService.setUserService(
-      _userService,
-    ); // Resolve circular dependency
-  }
+  AuthService({
+    required FirestoreService firestoreService,
+    required UserService userService,
+    required InvitationService invitationService,
+  }) : _userService = userService,
+       _invitationService = invitationService;
 
   User? get currentUser => _auth.currentUser;
 
