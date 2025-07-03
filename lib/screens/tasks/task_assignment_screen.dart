@@ -147,7 +147,7 @@ class _TaskAssignmentScreenState extends State<TaskAssignmentScreen> {
                             color: AppConstants.textSecondaryColor,
                           ),
                         ),
-                        secondary: user['isRegistered']
+                        secondary: (user['isRegistered'] ?? false)
                             ? const Icon(
                                 Icons.person,
                                 color: AppConstants.primaryColor,
