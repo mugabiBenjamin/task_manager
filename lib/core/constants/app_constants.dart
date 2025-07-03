@@ -12,6 +12,7 @@ class AppConstants {
   static const Color backgroundColor = Colors.white;
   static const Color errorColor = Colors.red;
   static const Color successColor = Colors.green;
+  static const Color warningColor = Colors.orange;
   static const Color textPrimaryColor = Colors.black87;
   static const Color textSecondaryColor = Colors.grey;
 

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Task Assignment</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 20px;
+      }
+      .header img {
+        max-width: 150px;
+      }
+      .content {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #333333;
+      }
+      .button {
+        display: inline-block;
+        background-color: #667eea;
+        color: #ffffff;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+      .button:hover {
+        background-color: #5a67d8;
+      }
+      .task-info {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 20px 0;
+      }
+      .instructions {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 20px 0;
+      }
+      .instructions ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .instructions li {
+        margin-bottom: 10px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 14px;
+        color: #777777;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>New Task Assignment</h1>
+      </div>
+      <div class="content">
+        <p>Hi {{to_name}},</p>
+        <p>
+          You've been assigned a new task by {{creator_name}}
+          ({{creator_email}}).
+        </p>
+        <div class="task-info">
+          <p><strong>Task:</strong> {{task_title}}</p>
+          <p><strong>Description:</strong> {{task_description}}</p>
+          <p><strong>Priority:</strong> {{task_priority}}</p>
+          <p><strong>Due Date:</strong> {{task_due_date}}</p>
+          <p><strong>Task ID:</strong> {{task_id}}</p>
+        </div>
+        <p><a href="{{web_task_link}}" class="button">View Task ID</a></p>
+        <p>View task: <a href="{{web_task_link}}">{{web_task_link}}</a></p>
+        <div class="instructions">
+          <p><strong>How to View Your Task:</strong></p>
+          <ol>
+            <li>
+              Click the "View Task ID" button above or the link to open a page
+              displaying your Task ID.
+            </li>
+            <li>Copy the Task ID shown on the page ({{task_id}}).</li>
+            <li>Open the Task Manager app on your test device.</li>
+            <li>Sign in if not already logged in.</li>
+            <li>Go to the Task List screen and click the search icon.</li>
+            <li>
+              Paste the Task ID into the search field and submit to view the
+              task details.
+            </li>
+          </ol>
+        </div>
+        <p>
+          If you have any questions, contact {{creator_name}} at
+          {{creator_email}}.
+        </p>
+        <p><a href="{{unsubscribe_link}}">Unsubscribe from notifications</a></p>
+      </div>
+      <div class="footer">
+        <p>© 2025 Task Manager. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

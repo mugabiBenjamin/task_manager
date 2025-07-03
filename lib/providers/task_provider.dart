@@ -7,9 +7,13 @@ import '../core/enums/task_priority.dart';
 import '../services/user_service.dart';
 import 'auth_provider.dart';
 import '../services/email_service.dart';
+import '../services/firestore_service.dart';
+import '../services/invitation_service.dart';
 
 class TaskProvider extends ChangeNotifier {
   final TaskService _taskService = TaskService();
+  late final UserService
+  _userService; 
   AuthProvider? _authProvider;
 
   List<TaskModel> _tasks = [];
@@ -20,6 +24,23 @@ class TaskProvider extends ChangeNotifier {
   TaskPriority? _priorityFilter;
   String? _labelFilter;
   String _searchQuery = '';
+
+  TaskProvider() {
+    _initializeServices();
+  }
+
+  void _initializeServices() {
+    final firestoreService = FirestoreService();
+    final invitationService = InvitationService(
+      firestoreService: firestoreService,
+      userService: null, // Set to null temporarily to avoid circular dependency
+    );
+    // Initialize UserService with FirestoreService and InvitationService
+    _userService = UserService(
+      firestoreService: firestoreService,
+      invitationService: invitationService,
+    );
+  }
 
   // Getters
   List<TaskModel> get tasks => _filteredTasks;
@@ -35,13 +56,11 @@ class TaskProvider extends ChangeNotifier {
   void updateAuthProvider(AuthProvider authProvider) {
     _authProvider = authProvider;
 
-    // Auto-load tasks when user authenticates
     if (_authProvider?.isAuthenticated == true &&
         _authProvider?.user?.uid != null) {
       loadTasks(_authProvider!.user!.uid);
     }
 
-    // Clear tasks when user signs out
     if (_authProvider?.isAuthenticated == false) {
       _tasks.clear();
       _filteredTasks.clear();
@@ -50,7 +69,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Load tasks for current user (with auth check)
+  // Load tasks for current user
   void loadTasks([String? userId]) {
     final currentUserId = userId ?? _authProvider?.user?.uid;
 
@@ -74,7 +93,7 @@ class TaskProvider extends ChangeNotifier {
         );
   }
 
-  // Create new task (with auth check) - CORRECTED
+  // Create new task
   Future<bool> createTask(TaskModel task) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -85,7 +104,6 @@ class TaskProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Use createdBy instead of creatorId
       final taskWithCreator = task.copyWith(
         createdBy: _authProvider!.user!.uid,
       );
@@ -99,7 +117,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Update existing task (with ownership check) - CORRECTED
+  // Update existing task
   Future<bool> updateTask(String taskId, Map<String, dynamic> updates) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -110,7 +128,6 @@ class TaskProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Check if user has permission to update task
       final task = await _taskService.getTaskById(taskId);
       if (task == null) {
         _setError('Task not found');
@@ -119,16 +136,14 @@ class TaskProvider extends ChangeNotifier {
       }
 
       final currentUserId = _authProvider!.user!.uid;
-      // Use createdBy and assignedTo instead of creatorId and assignedUsers
-      if (task.createdBy != currentUserId &&
-          !task.assignedTo.contains(currentUserId)) {
-        _setError('You don\'t have permission to update this task');
+      if (task.createdBy != currentUserId) {
+        _setError('Only the task creator can update task details');
         _setLoading(false);
         return false;
       }
 
       await _taskService.updateTask(taskId, updates);
-      loadTasks(); // Reload tasks to reflect changes
+      loadTasks();
       _setLoading(false);
       return true;
     } catch (e) {
@@ -138,7 +153,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Delete task (with ownership check) - CORRECTED
+  // Delete task
   Future<bool> deleteTask(String taskId) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -149,7 +164,6 @@ class TaskProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Check if user is the creator
       final task = await _taskService.getTaskById(taskId);
       if (task == null) {
         _setError('Task not found');
@@ -157,7 +171,6 @@ class TaskProvider extends ChangeNotifier {
         return false;
       }
 
-      // Use createdBy instead of creatorId
       if (task.createdBy != _authProvider!.user!.uid) {
         _setError('Only the task creator can delete this task');
         _setLoading(false);
@@ -174,7 +187,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Update task status (with permission check) - CORRECTED
+  // Update task status
   Future<bool> updateTaskStatus(String taskId, TaskStatus status) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -191,10 +204,9 @@ class TaskProvider extends ChangeNotifier {
       }
 
       final currentUserId = _authProvider!.user!.uid;
-      // Use createdBy and assignedTo instead of creatorId and assignedUsers
       if (task.createdBy != currentUserId &&
           !task.assignedTo.contains(currentUserId)) {
-        _setError('You don\'t have permission to update this task');
+        _setError('You don\'t have permission to update this task status');
         return false;
       }
 
@@ -206,7 +218,7 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  // Assign task to users (creator only) - CORRECTED
+  // Assign task to users
   Future<bool> assignTask(String taskId, List<String> userIds) async {
     if (_authProvider?.user?.uid == null) {
       _setError('User not authenticated');
@@ -227,12 +239,19 @@ class TaskProvider extends ChangeNotifier {
         return false;
       }
 
-      // Assign task first
+      final availableUsers = await _userService.getAvailableUsersForTask('');
+      final validUserIds = availableUsers.map((user) => user['id']).toList();
+      final invalidUsers = userIds
+          .where((id) => !validUserIds.contains(id))
+          .toList();
+
+      if (invalidUsers.isNotEmpty) {
+        _setError('Some users are not available for assignment');
+        return false;
+      }
+
       await _taskService.assignTask(taskId, userIds);
-
-      // Send email notifications (don't block on failure)
-      _sendAssignmentNotifications(task, userIds);
-
+      await _sendAssignmentNotifications(task, userIds);
       return true;
     } catch (e) {
       _setError('Failed to assign task: $e');
@@ -245,25 +264,35 @@ class TaskProvider extends ChangeNotifier {
     List<String> userIds,
   ) async {
     try {
-      // Get assignee details
-      final userService = UserService();
-      final assignees = await userService.getUsersByIds(userIds);
+      final assignees = await _userService.getAvailableUsersForTask('');
+      final validAssignees = assignees
+          .where((user) => userIds.contains(user['id']))
+          .toList();
+      final creatorData = await _userService.getUserById(task.createdBy);
 
-      // Get creator details
-      final creator = await userService.getUserById(task.createdBy);
-      if (creator == null) return;
+      if (creatorData == null) {
+        if (kDebugMode) {
+          print('Creator data not found for task ${task.id}');
+        }
+        return;
+      }
 
-      // Send notifications
+      final creator = {
+        'id': creatorData.id,
+        'email': creatorData.email,
+        'displayName': creatorData.displayName,
+        'emailNotifications': creatorData.emailNotifications,
+      };
+
       await EmailService.sendTaskAssignmentNotification(
         task: task,
-        assignees: assignees,
+        assignees: validAssignees,
         creator: creator,
       );
     } catch (e) {
       if (kDebugMode) {
         print('Failed to send email notifications: $e');
       }
-      // Don't throw error - email failure shouldn't affect task assignment
     }
   }
 
@@ -316,22 +345,15 @@ class TaskProvider extends ChangeNotifier {
   // Apply all active filters
   void _applyFilters() {
     _filteredTasks = _tasks.where((task) {
-      // Status filter
       if (_statusFilter != null && task.status != _statusFilter) {
         return false;
       }
-
-      // Priority filter
       if (_priorityFilter != null && task.priority != _priorityFilter) {
         return false;
       }
-
-      // Label filter
       if (_labelFilter != null && !task.labels.contains(_labelFilter)) {
         return false;
       }
-
-      // Search query filter
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         if (!task.title.toLowerCase().contains(query) &&
@@ -339,11 +361,9 @@ class TaskProvider extends ChangeNotifier {
           return false;
         }
       }
-
       return true;
     }).toList();
 
-    // Sort by created date (newest first)
     _filteredTasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -393,7 +413,7 @@ class TaskProvider extends ChangeNotifier {
     };
   }
 
-  // Get user's tasks (created or assigned) - CORRECTED
+  // Get user's tasks
   List<TaskModel> getUserTasks() {
     if (_authProvider?.user?.uid == null) return [];
 
@@ -409,15 +429,11 @@ class TaskProvider extends ChangeNotifier {
 
   Map<String, List<TaskModel>> getGroupedTasks() {
     final Map<String, List<TaskModel>> groupedTasks = {};
-
-    // Sort filtered tasks by created date (newest first)
     final sortedTasks = List<TaskModel>.from(_filteredTasks);
     sortedTasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Group tasks by date sections
     for (final task in sortedTasks) {
       final sectionHeader = DateHelper.getSectionHeader(task.createdAt);
-
       if (groupedTasks.containsKey(sectionHeader)) {
         groupedTasks[sectionHeader]!.add(task);
       } else {
@@ -428,7 +444,7 @@ class TaskProvider extends ChangeNotifier {
     return groupedTasks;
   }
 
-  // Get tasks created by user - CORRECTED
+  // Get tasks created by user
   List<TaskModel> getCreatedTasks() {
     if (_authProvider?.user?.uid == null) return [];
 
@@ -436,7 +452,7 @@ class TaskProvider extends ChangeNotifier {
     return _tasks.where((task) => task.createdBy == currentUserId).toList();
   }
 
-  // Get tasks assigned to user - CORRECTED
+  // Get tasks assigned to user
   List<TaskModel> getAssignedTasks() {
     if (_authProvider?.user?.uid == null) return [];
 
@@ -483,14 +499,10 @@ class TaskProvider extends ChangeNotifier {
   Map<String, List<TaskModel>> getGroupedStarredTasks() {
     final Map<String, List<TaskModel>> groupedTasks = {};
     final starredTasks = getStarredTasks();
-
-    // Sort starred tasks by created date (newest first)
     starredTasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Group tasks by date sections
     for (final task in starredTasks) {
       final sectionHeader = DateHelper.getSectionHeader(task.createdAt);
-
       if (groupedTasks.containsKey(sectionHeader)) {
         groupedTasks[sectionHeader]!.add(task);
       } else {

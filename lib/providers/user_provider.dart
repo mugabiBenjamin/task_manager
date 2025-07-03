@@ -1,10 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/user_service.dart';
+import '../services/firestore_service.dart'; // ADDED: Import FirestoreService
+import '../services/invitation_service.dart'; // ADDED: Import InvitationService
 import 'auth_provider.dart';
 
 class UserProvider extends ChangeNotifier {
-  final UserService _userService = UserService();
+  // CHANGED: Added FirestoreService and InvitationService instances
+  final FirestoreService _firestoreService = FirestoreService();
+  late final InvitationService _invitationService;
+  late final UserService _userService;
 
   List<UserModel> _users = [];
   bool _isLoading = false;
@@ -15,6 +20,28 @@ class UserProvider extends ChangeNotifier {
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  List<Map<String, dynamic>> _availableUsers = [];
+  List<Map<String, dynamic>> get availableUsers => _availableUsers;
+
+  // ADDED: Constructor to initialize services
+  UserProvider() {
+    _initializeServices();
+  }
+
+  // ADDED: Initialize services with required dependencies
+  void _initializeServices() {
+    _invitationService = InvitationService(
+      firestoreService: _firestoreService,
+      userService: null, // Will be set after UserService initialization
+    );
+    _userService = UserService(
+      firestoreService: _firestoreService,
+      invitationService: _invitationService,
+    );
+    _invitationService.setUserService(
+      _userService,
+    ); // Resolve circular dependency
+  }
 
   // Update auth provider dependency
   void updateAuthProvider(AuthProvider authProvider) {
@@ -88,6 +115,30 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Search available users specifically for task assignment
+  Future<void> searchAvailableUsersForTask(String query) async {
+    if (!_isUserAuthenticated()) return;
+
+    if (query.isEmpty) {
+      _availableUsers = [];
+      notifyListeners();
+      return;
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // CHANGED: Use getAvailableUsersForTask instead of searchUsers
+      _availableUsers = await _userService.getAvailableUsersForTask(query);
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to search available users: $e');
+      _setLoading(false);
+    }
+  }
+
   // Update user profile
   Future<bool> updateUser(String userId, Map<String, dynamic> updates) async {
     if (!_isUserAuthenticated()) return false;
@@ -152,6 +203,7 @@ class UserProvider extends ChangeNotifier {
 
   void _clearError() {
     _errorMessage = null;
+    _availableUsers = [];
     notifyListeners();
   }
 }

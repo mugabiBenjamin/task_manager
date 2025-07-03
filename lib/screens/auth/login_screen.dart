@@ -15,15 +15,144 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _tokenController = TextEditingController();
   bool _obscurePassword = true;
   bool _emailHasError = false;
   bool _passwordHasError = false;
+  bool _showTokenField = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _tokenController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      final authProvider = context.read<AuthProvider>();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      // Handle token if provided
+      if (_showTokenField && _tokenController.text.isNotEmpty) {
+        final success = await authProvider.acceptInvitation(
+          _tokenController.text.trim(),
+          email.split('@')[0], // Use email prefix as displayName
+        );
+        if (!success) {
+          _highlightErrorFields(authProvider.errorMessage ?? 'Invalid token');
+          return;
+        }
+      }
+
+      final success = await authProvider.signIn(
+        email: email,
+        password: password,
+      );
+
+      if (!success && authProvider.errorMessage != null) {
+        _highlightErrorFields(authProvider.errorMessage!);
+      } else if (success && mounted) {
+        Navigator.pushReplacementNamed(context, AppRoutes.taskList);
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    final authProvider = context.read<AuthProvider>();
+    // Support token with Google sign-in
+    if (_showTokenField && _tokenController.text.isNotEmpty) {
+      await authProvider.signInWithGoogle(
+        invitationToken: _tokenController.text.trim(),
+      );
+    } else {
+      await authProvider.signInWithGoogle();
+    }
+  }
+
+  void _highlightErrorFields(String errorMessage) {
+    setState(() {
+      if (errorMessage.toLowerCase().contains('email') ||
+          errorMessage.toLowerCase().contains('invalid email') ||
+          errorMessage.toLowerCase().contains('token')) {
+        _emailHasError = true;
+        _passwordHasError = false;
+      } else if (errorMessage.toLowerCase().contains('password') ||
+          errorMessage.toLowerCase().contains('credential')) {
+        _emailHasError = true;
+        _passwordHasError = true;
+      } else {
+        _emailHasError = false;
+        _passwordHasError = false;
+      }
+    });
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter your email address to receive a password reset link.',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (emailController.text.isNotEmpty) {
+                final authProvider = context.read<AuthProvider>();
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                final success = await authProvider.resetPassword(
+                  emailController.text.trim(),
+                );
+
+                navigator.pop();
+
+                if (!mounted) return;
+
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Password reset email sent successfully!'
+                          : 'Failed to send reset email. Please try again.',
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -49,6 +178,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 32),
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppConstants.primaryColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Received an invitation email? Click "Have an Invitation Token?" below and paste the token from the email.',
+                          style: TextStyle(color: AppConstants.primaryColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
                     return TextFormField(
@@ -160,7 +313,51 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Forgot Password Link
+                if (_showTokenField)
+                  Consumer<AuthProvider>(
+                    builder: (context, authProvider, child) {
+                      return TextFormField(
+                        controller: _tokenController,
+                        decoration: const InputDecoration(
+                          labelText: 'Invitation Token',
+                          prefixIcon: Icon(Icons.vpn_key),
+                          border: OutlineInputBorder(),
+                          helperText:
+                              'Paste the token from your invitation email',
+                          helperStyle: TextStyle(
+                            color: AppConstants.primaryColor,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            if (value.length < 32) {
+                              return 'Token must be at least 32 characters';
+                            }
+                          }
+                          return null;
+                        },
+                      );
+                    },
+                  ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _showTokenField = !_showTokenField;
+                    });
+                  },
+                  child: Text(
+                    _showTokenField
+                        ? 'Hide Token Field'
+                        : 'Have an Invitation Token?',
+                    style: const TextStyle(
+                      color: AppConstants.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -276,107 +473,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _login() async {
-    if (_formKey.currentState!.validate()) {
-      final authProvider = context.read<AuthProvider>();
-      final success = await authProvider.signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (!success && authProvider.errorMessage != null) {
-        _highlightErrorFields(authProvider.errorMessage!);
-      }
-    }
-  }
-
-  void _signInWithGoogle() async {
-    final authProvider = context.read<AuthProvider>();
-    await authProvider.signInWithGoogle();
-  }
-
-  void _highlightErrorFields(String errorMessage) {
-    setState(() {
-      if (errorMessage.toLowerCase().contains('email') ||
-          errorMessage.toLowerCase().contains('invalid email')) {
-        _emailHasError = true;
-        _passwordHasError = false;
-      } else if (errorMessage.toLowerCase().contains('password') ||
-          errorMessage.toLowerCase().contains('credential')) {
-        _emailHasError = true;
-        _passwordHasError = true;
-      } else {
-        _emailHasError = false;
-        _passwordHasError = false;
-      }
-    });
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Enter your email address to receive a password reset link.',
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (emailController.text.isNotEmpty) {
-                final authProvider = context.read<AuthProvider>();
-                final navigator = Navigator.of(context);
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-                final success = await authProvider.resetPassword(
-                  emailController.text.trim(),
-                );
-
-                navigator.pop();
-
-                if (!mounted) return;
-
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      success
-                          ? 'Password reset email sent successfully!'
-                          : 'Failed to send reset email. Please try again.',
-                    ),
-                    backgroundColor: success ? Colors.green : Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Send Reset Link'),
-          ),
-        ],
       ),
     );
   }

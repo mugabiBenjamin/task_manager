@@ -4,9 +4,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
+import '../services/invitation_service.dart';
+import '../services/user_service.dart';
+import '../services/firestore_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
+  late final AuthService _authService;
+  late final UserService _userService;
+  late final InvitationService _invitationService;
   User? _user;
   UserModel? _userModel;
   bool _isLoading = false;
@@ -20,12 +26,33 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
   bool get shouldShowRetryDelay => _failedAttempts >= 3;
+  AuthService get authService => _authService;
+  InvitationService get invitationService => _invitationService;
+  UserService get userService => _userService;
 
   UserModel? _cachedUserModel;
   bool _hasLoadedUserData = false;
 
   AuthProvider() {
+    _initializeServices();
     _initializeAuthListener();
+  }
+
+  void _initializeServices() {
+    _invitationService = InvitationService(firestoreService: _firestoreService);
+
+    _userService = UserService(
+      firestoreService: _firestoreService,
+      invitationService: _invitationService,
+    );
+
+    _invitationService.setUserService(_userService);
+
+    _authService = AuthService(
+      firestoreService: _firestoreService,
+      userService: _userService,
+      invitationService: _invitationService,
+    );
   }
 
   void _initializeAuthListener() {
@@ -33,14 +60,13 @@ class AuthProvider extends ChangeNotifier {
       _user = user;
       if (user != null) {
         _resetFailedAttempts();
-        // Only load if not cached
         if (!_hasLoadedUserData) {
           loadUserData();
         }
         _navigateToTaskList();
       } else {
         _userModel = null;
-        _clearUserCache(); // Clear cache on sign out
+        _clearUserCache();
         _navigateToLogin();
       }
       notifyListeners();
@@ -83,7 +109,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> loadUserData() async {
     if (_hasLoadedUserData && _cachedUserModel != null) {
-      // Use cached data
       _userModel = _cachedUserModel;
       notifyListeners();
       return;
@@ -95,14 +120,12 @@ class AuthProvider extends ChangeNotifier {
         _cachedUserModel = _userModel;
         _hasLoadedUserData = true;
       } else if (_user != null) {
-        // Fallback to Firebase Auth user properties
         _userModel = UserModel.fromFirebaseUser(_user!);
         _cachedUserModel = _userModel;
       }
       notifyListeners();
     } catch (e) {
       if (_user != null) {
-        // Use Firebase Auth fallback on error
         _userModel = UserModel.fromFirebaseUser(_user!);
         _cachedUserModel = _userModel;
         notifyListeners();
@@ -117,7 +140,6 @@ class AuthProvider extends ChangeNotifier {
     _hasLoadedUserData = false;
   }
 
-  // Enhanced error parsing
   String _parseFirebaseError(dynamic error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {
@@ -157,13 +179,17 @@ class AuthProvider extends ChangeNotifier {
           return 'Authentication failed. Please try again.';
       }
     }
+    if (error.toString().contains('Invalid or expired invitation')) {
+      return 'The invitation link is invalid or has expired.';
+    }
+    if (error.toString().contains('Failed to accept invitation')) {
+      return 'Failed to accept invitation. Please try again.';
+    }
     return error.toString().replaceAll('Exception: ', '');
   }
 
-  // Retry logic with exponential backoff
   bool _canRetryNow() {
     if (_lastFailedAttempt == null) return true;
-
     final delay = Duration(seconds: _getRetryDelaySeconds());
     return DateTime.now().difference(_lastFailedAttempt!) >= delay;
   }
@@ -172,7 +198,7 @@ class AuthProvider extends ChangeNotifier {
     if (_failedAttempts <= 2) return 0;
     if (_failedAttempts <= 4) return 30;
     if (_failedAttempts <= 6) return 60;
-    return 300; // 5 minutes
+    return 300;
   }
 
   void _recordFailedAttempt() {
@@ -189,6 +215,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String displayName,
+    String? invitationToken,
   }) async {
     _setLoading(true);
     _clearError();
@@ -198,6 +225,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         displayName: displayName,
+        invitationToken: invitationToken,
       );
       _resetFailedAttempts();
       _setLoading(false);
@@ -237,12 +265,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({String? invitationToken}) async {
     _setLoading(true);
     _clearError();
 
     try {
-      final result = await _authService.signInWithGoogle();
+      final result = await _authService.signInWithGoogle(
+        invitationToken: invitationToken,
+      );
       _resetFailedAttempts();
       _setLoading(false);
       return result != null;
@@ -273,11 +303,9 @@ class AuthProvider extends ChangeNotifier {
     if (_user == null) return;
 
     try {
-      // Reload Firebase user to get fresh email verification status
       await _user!.reload();
-      _user = _authService.currentUser; // Get updated user instance
+      _user = _authService.currentUser;
 
-      // Update UserModel with fresh verification status
       if (_userModel != null) {
         _userModel = _userModel!.copyWith(
           isEmailVerified: _user!.emailVerified,
@@ -286,7 +314,6 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // Silent fail - don't show error for background refresh
       debugPrint('Failed to refresh email verification: $e');
     }
   }
@@ -297,7 +324,6 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _authService.sendEmailVerification();
       _startPeriodicVerificationCheck();
-
       return true;
     } catch (e) {
       _setError(_parseFirebaseError(e));
@@ -317,6 +343,68 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> verifyInvitationToken(String token, String displayName) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _invitationService.acceptInvitation(
+        token,
+        displayName,
+      );
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _setError(_parseFirebaseError(e));
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> acceptInvitation(String token, String displayName) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _invitationService.acceptInvitation(
+        token,
+        displayName,
+      );
+      if (success) {
+        debugPrint('Invitation accepted for token: $token');
+        await loadUserData();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final context = navigatorKey?.currentContext;
+          if (context != null) {
+            Navigator.of(context).pushNamed(AppRoutes.login);
+          }
+        });
+      }
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      debugPrint('Failed to accept invitation for token: $token: $e');
+      _setError(_parseFirebaseError(e));
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> declineInvitation(String token) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _invitationService.declineInvitation(token);
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _setError(_parseFirebaseError(e));
+      _setLoading(false);
+      return false;
+    }
+  }
+
   Timer? _verificationCheckTimer;
 
   void _startPeriodicVerificationCheck() {
@@ -325,8 +413,6 @@ class AuthProvider extends ChangeNotifier {
       timer,
     ) async {
       await refreshEmailVerificationStatus();
-
-      // Stop if verified or after 10 minutes
       if (_userModel?.isEmailVerified == true || timer.tick > 120) {
         timer.cancel();
       }

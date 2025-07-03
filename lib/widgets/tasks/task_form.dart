@@ -7,6 +7,7 @@ import '../../core/enums/task_status.dart';
 import '../../core/utils/date_helper.dart';
 import '../../core/utils/validators.dart';
 import '../../models/task_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/label_provider.dart';
 import '../../routes/app_routes.dart';
 import '../common/custom_text_field.dart';
@@ -43,6 +44,7 @@ class TaskFormState extends State<TaskForm> {
   late TaskPriority _selectedPriority;
   late List<String> _selectedAssignees;
   late List<String> _selectedLabels;
+  late bool _isCreator;
 
   @override
   void initState() {
@@ -54,21 +56,22 @@ class TaskFormState extends State<TaskForm> {
     _startDateController = TextEditingController(
       text: widget.task?.startDate != null
           ? DateFormat('yyyy-MM-dd').format(widget.task!.startDate!)
-          : DateFormat(
-              'yyyy-MM-dd',
-            ).format(DateTime.now()), // Added default to today
+          : DateFormat('yyyy-MM-dd').format(DateTime.now()),
     );
     _dueDateController = TextEditingController(
       text: widget.task?.dueDate != null
           ? DateFormat('yyyy-MM-dd').format(widget.task!.dueDate!)
-          : DateFormat('yyyy-MM-dd').format(
-              DateTime.now().add(const Duration(days: 1)),
-            ), // Added default to tomorrow
+          : DateFormat(
+              'yyyy-MM-dd',
+            ).format(DateTime.now().add(const Duration(days: 1))),
     );
     _selectedStatus = widget.task?.status ?? TaskStatus.notStarted;
     _selectedPriority = widget.task?.priority ?? TaskPriority.medium;
     _selectedAssignees = widget.task?.assignedTo ?? [];
     _selectedLabels = widget.task?.labels ?? [];
+    _isCreator =
+        widget.task == null ||
+        context.read<AuthProvider>().user?.uid == widget.task?.createdBy;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onFormReady?.call();
@@ -91,9 +94,14 @@ class TaskFormState extends State<TaskForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          widget.isEditing
-              ? // IMMUTABLE title display
-                Container(
+          _isCreator && !widget.isEditing
+              ? CustomTextField(
+                  controller: _titleController,
+                  labelText: 'Task Title',
+                  validator: Validators.validateTaskTitle,
+                  onChanged: (value) {},
+                )
+              : Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -114,22 +122,38 @@ class TaskFormState extends State<TaskForm> {
                       ),
                     ],
                   ),
-                )
-              : // EDITABLE title field
-                CustomTextField(
-                  controller: _titleController,
-                  labelText: 'Task Title',
-                  validator: Validators.validateTaskTitle,
-                  onChanged: (value) {},
                 ),
           const SizedBox(height: AppConstants.defaultPadding),
-          CustomTextField(
-            controller: _descriptionController,
-            labelText: 'Description',
-            maxLines: 4,
-            validator: Validators.validateTaskDescription,
-            onChanged: (value) {},
-          ),
+          _isCreator
+              ? CustomTextField(
+                  controller: _descriptionController,
+                  labelText: 'Description',
+                  maxLines: 4,
+                  validator: Validators.validateTaskDescription,
+                  onChanged: (value) {},
+                )
+              : Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Description',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        widget.task?.description ?? '',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
           const SizedBox(height: AppConstants.defaultPadding),
           StatusDropdown(
             value: _selectedStatus,
@@ -142,9 +166,18 @@ class TaskFormState extends State<TaskForm> {
             },
           ),
           const SizedBox(height: AppConstants.defaultPadding),
-          widget.isEditing
-              ? // IMMUTABLE priority display
-                Container(
+          _isCreator
+              ? PriorityDropdown(
+                  value: _selectedPriority,
+                  onChanged: (TaskPriority? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedPriority = newValue;
+                      });
+                    }
+                  },
+                )
+              : Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -165,22 +198,20 @@ class TaskFormState extends State<TaskForm> {
                       ),
                     ],
                   ),
-                )
-              : // EDITABLE priority dropdown
-                PriorityDropdown(
-                  value: _selectedPriority,
-                  onChanged: (TaskPriority? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _selectedPriority = newValue;
-                      });
-                    }
-                  },
                 ),
           const SizedBox(height: AppConstants.defaultPadding),
-          widget.isEditing
-              ? // IMMUTABLE start date display
-                Container(
+          _isCreator
+              ? CustomTextField(
+                  controller: _startDateController,
+                  labelText: 'Start Date',
+                  readOnly: true,
+                  onTap: () => _selectDate(context, isStartDate: true),
+                  validator: Validators.validateStartDate,
+                  onChanged: (value) {
+                    _formKey.currentState?.validate();
+                  },
+                )
+              : Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -203,22 +234,21 @@ class TaskFormState extends State<TaskForm> {
                       ),
                     ],
                   ),
-                )
-              : // EDITABLE start date field
-                CustomTextField(
-                  controller: _startDateController,
-                  labelText: 'Start Date',
-                  readOnly: true,
-                  onTap: () => _selectDate(context, isStartDate: true),
-                  validator: Validators.validateStartDate,
-                  onChanged: (value) {
-                    _formKey.currentState?.validate();
-                  },
                 ),
           const SizedBox(height: AppConstants.defaultPadding),
-          widget.isEditing
-              ? // IMMUTABLE due date display
-                Container(
+          _isCreator
+              ? CustomTextField(
+                  controller: _dueDateController,
+                  labelText: 'Due Date',
+                  readOnly: true,
+                  onTap: () => _selectDate(context, isStartDate: false),
+                  validator: (value) => Validators.validateDueDate(
+                    value,
+                    _startDateController.text,
+                  ),
+                  onChanged: (value) {},
+                )
+              : Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -241,55 +271,69 @@ class TaskFormState extends State<TaskForm> {
                       ),
                     ],
                   ),
+                ),
+          const SizedBox(height: AppConstants.defaultPadding),
+          _isCreator
+              ? ListTile(
+                  title: const Text('Assignees'),
+                  trailing: const Icon(Icons.person_add),
+                  onTap: () => _navigateToAssignmentScreen(context),
                 )
-              : // EDITABLE due date field
-                CustomTextField(
-                  controller: _dueDateController,
-                  labelText: 'Due Date',
-                  readOnly: true,
-                  onTap: () => _selectDate(context, isStartDate: false),
-                  validator: (value) => Validators.validateDueDate(
-                    value,
-                    _startDateController.text,
+              : Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  onChanged: (value) {},
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Assignees',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _selectedAssignees.isEmpty
+                            ? 'No assignees'
+                            : '${_selectedAssignees.length} assignee${_selectedAssignees.length > 1 ? 's' : ''}',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
                 ),
           const SizedBox(height: AppConstants.defaultPadding),
-          ListTile(
-            title: const Text('Assignees'),
-            trailing: const Icon(Icons.person_add),
-            onTap: () => _navigateToAssignmentScreen(context),
-          ),
-          if (_selectedAssignees.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppConstants.smallPadding,
-              ),
-              child: Text(
-                '${_selectedAssignees.length} assignee${_selectedAssignees.length > 1 ? 's' : ''} selected',
-                style: AppConstants.bodyStyle.copyWith(
-                  color: AppConstants.textSecondaryColor,
+          _isCreator
+              ? ListTile(
+                  title: const Text('Labels'),
+                  trailing: const Icon(Icons.label),
+                  onTap: () => _showLabelSelectionDialog(context),
+                )
+              : Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Labels',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _selectedLabels.isEmpty
+                            ? 'No labels'
+                            : '${_selectedLabels.length} label${_selectedLabels.length > 1 ? 's' : ''}',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          const SizedBox(height: AppConstants.defaultPadding),
-          ListTile(
-            title: const Text('Labels'),
-            trailing: const Icon(Icons.label),
-            onTap: () => _showLabelSelectionDialog(context),
-          ),
-          if (_selectedLabels.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppConstants.smallPadding,
-              ),
-              child: Text(
-                '${_selectedLabels.length} label${_selectedLabels.length > 1 ? 's' : ''} selected',
-                style: AppConstants.bodyStyle.copyWith(
-                  color: AppConstants.textSecondaryColor,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -299,6 +343,8 @@ class TaskFormState extends State<TaskForm> {
     BuildContext context, {
     required bool isStartDate,
   }) async {
+    if (!_isCreator) return;
+
     final today = DateTime.now();
     final initialDate = isStartDate
         ? today
@@ -316,7 +362,6 @@ class TaskFormState extends State<TaskForm> {
       setState(() {
         if (isStartDate) {
           _startDateController.text = formattedDate;
-          // Clear due date if it's before new start date
           if (_dueDateController.text.isNotEmpty) {
             final dueDate = DateHelper.parseDate(_dueDateController.text);
             if (dueDate != null && dueDate.isBefore(picked)) {
@@ -327,12 +372,12 @@ class TaskFormState extends State<TaskForm> {
           _dueDateController.text = formattedDate;
         }
       });
-      // Trigger validation
       _formKey.currentState?.validate();
     }
   }
 
   void _navigateToAssignmentScreen(BuildContext context) {
+    if (!_isCreator) return;
     if (widget.task?.id.isEmpty ?? true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -358,6 +403,7 @@ class TaskFormState extends State<TaskForm> {
   }
 
   void _showLabelSelectionDialog(BuildContext context) {
+    if (!_isCreator) return;
     showDialog(
       context: context,
       builder: (context) {
@@ -430,9 +476,7 @@ class TaskFormState extends State<TaskForm> {
   }
 
   void submitForm(String userId) {
-    debugPrint('submitForm called with userId: $userId');
     if (_formKey.currentState!.validate()) {
-      debugPrint('Form validation passed');
       final task = TaskModel(
         id: widget.task?.id ?? '',
         title: _titleController.text.trim(),
@@ -449,11 +493,7 @@ class TaskFormState extends State<TaskForm> {
         createdAt: widget.task?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      debugPrint('Task created: ${task.title}');
       widget.onSubmit(task);
-      debugPrint('onSubmit called');
-    } else {
-      debugPrint('Form validation failed');
     }
   }
 }
