@@ -6,9 +6,11 @@ import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
 import '../services/invitation_service.dart';
 import '../services/user_service.dart';
+import '../services/firestore_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
+  late final AuthService _authService;
   late final UserService _userService;
   late final InvitationService _invitationService;
   User? _user;
@@ -24,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
   bool get shouldShowRetryDelay => _failedAttempts >= 3;
+  AuthService get authService => _authService;
 
   UserModel? _cachedUserModel;
   bool _hasLoadedUserData = false;
@@ -34,12 +37,20 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _initializeServices() {
-    _userService = UserService();
-    _invitationService = InvitationService();
+    _invitationService = InvitationService(firestoreService: _firestoreService);
 
-    // Set up the circular dependencies after creation
-    _userService.setInvitationService(_invitationService);
+    _userService = UserService(
+      firestoreService: _firestoreService,
+      invitationService: _invitationService,
+    );
+
     _invitationService.setUserService(_userService);
+
+    _authService = AuthService(
+      firestoreService: _firestoreService,
+      userService: _userService,
+      invitationService: _invitationService,
+    );
   }
 
   void _initializeAuthListener() {
@@ -127,7 +138,6 @@ class AuthProvider extends ChangeNotifier {
     _hasLoadedUserData = false;
   }
 
-  // Enhanced error parsing
   String _parseFirebaseError(dynamic error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {
@@ -361,13 +371,10 @@ class AuthProvider extends ChangeNotifier {
       if (success) {
         debugPrint('Invitation accepted for token: $token');
         await loadUserData();
-        // ADDED: Navigate to sign-in or token-entry screen
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final context = navigatorKey?.currentContext;
           if (context != null) {
-            Navigator.of(context).pushNamed(
-              AppRoutes.login,
-            ); // Navigate to login screen for manual sign-in
+            Navigator.of(context).pushNamed(AppRoutes.login);
           }
         });
       }
