@@ -7,13 +7,13 @@ import '../core/enums/task_priority.dart';
 import '../services/user_service.dart';
 import 'auth_provider.dart';
 import '../services/email_service.dart';
+import '../services/firestore_service.dart';
 import '../services/invitation_service.dart';
 
 class TaskProvider extends ChangeNotifier {
   final TaskService _taskService = TaskService();
-  final UserService _userService = UserService();
-  // ignore: unused_field
-  final InvitationService _invitationService = InvitationService();
+  late final UserService
+  _userService; 
   AuthProvider? _authProvider;
 
   List<TaskModel> _tasks = [];
@@ -24,6 +24,23 @@ class TaskProvider extends ChangeNotifier {
   TaskPriority? _priorityFilter;
   String? _labelFilter;
   String _searchQuery = '';
+
+  TaskProvider() {
+    _initializeServices();
+  }
+
+  void _initializeServices() {
+    final firestoreService = FirestoreService();
+    final invitationService = InvitationService(
+      firestoreService: firestoreService,
+      userService: null, // Set to null temporarily to avoid circular dependency
+    );
+    // Initialize UserService with FirestoreService and InvitationService
+    _userService = UserService(
+      firestoreService: firestoreService,
+      invitationService: invitationService,
+    );
+  }
 
   // Getters
   List<TaskModel> get tasks => _filteredTasks;
